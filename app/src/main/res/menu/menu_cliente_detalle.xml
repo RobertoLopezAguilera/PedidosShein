@@ -1,0 +1,24 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_editar_cliente"
+        android:icon="@drawable/icon_editar_cliente"
+        android:contentDescription="Editar Cliente"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_agregar_producto"
+        android:icon="@drawable/icon_pedidos"
+        android:contentDescription="Agregar Producto"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_agregar_abono"
+        android:icon="@drawable/icon_agregar_abono"
+        android:contentDescription="Agregar Abono"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menu_borrar_cliente"
+        android:icon="@drawable/borrar_cliente"
+        android:contentDescription="Eliminar Cliente"
+        app:showAsAction="always" />
+</menu>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/listas">
+
+    <TextView
+        android:id="@+id/tvEditarAbono"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Editar Abono"
+        android:textSize="22sp"
+        android:layout_marginBottom="20dp"/>
+
+    <EditText
+        android:id="@+id/etMontoAbono"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Monto del abono"
+        android:inputType="numberDecimal"
+        style="@style/input"/>
+
+    <EditText
+        android:id="@+id/etFechaAbono"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Fecha del abono"
+        android:inputType="date"
+        style="@style/input"/>
+
+    <Button
+        android:id="@+id/btnGuardarAbono"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="20dp"
+        app:cornerRadius="20dp"
+        android:background="@drawable/custom_botones"
+        android:text="Guardar"
+        android:textColor="@color/white" />
+</LinearLayout>

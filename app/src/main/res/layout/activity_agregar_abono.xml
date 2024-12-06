@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/listas">
+
+    <EditText
+        android:id="@+id/etAbonoMonto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Monto del Abono"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/etAbonoFecha"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Fecha del Abono"
+        android:inputType="date" />
+
+    <Button
+        android:id="@+id/btnAgregarAbono"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="Agregar Abono"
+        android:layout_marginTop="20dp"
+        app:cornerRadius="20dp"
+        android:background="@drawable/custom_botones"
+        android:textColor="@color/white"/>
+</LinearLayout>

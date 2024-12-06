@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_search"
+        android:title="Buscar"
+        android:icon="@drawable/icon_search_user"
+        app:showAsAction="collapseActionView|ifRoom"
+        app:actionViewClass="androidx.appcompat.widget.SearchView" />
+
+    <item
+        android:id="@+id/item_agregar_cliente"
+        android:title="Agregar Cliente"
+        android:icon="@drawable/icon_agregar_cliente"
+        app:showAsAction="ifRoom" />
+
+
+</menu>
