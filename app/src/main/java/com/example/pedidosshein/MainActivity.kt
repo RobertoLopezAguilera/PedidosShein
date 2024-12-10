@@ -12,6 +12,7 @@ import com.example.pedidosshein.data.entities.Abono
 import com.example.pedidosshein.data.entities.Cliente
 import com.example.pedidosshein.data.entities.Producto
 import com.example.pedidosshein.databinding.ActivityMainBinding
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -43,6 +44,32 @@ class MainActivity : AppCompatActivity() {
             cargarClientes()
         }
 
+        // Configurar navegación inferior
+        binding.bottomNavigationView.setOnItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.menu_clientes -> {
+                    // Ya estás en MainActivity, así que no es necesario hacer nada
+                    true
+                }
+                R.id.menu_productos -> {
+                    // Abrir actividad para productos
+                    val intent = Intent(this, ProductosActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                R.id.menu_abonos -> {
+                    // Abrir actividad para abonos
+                    val intent = Intent(this, AbonoActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                else -> false
+            }
+        }
+
+
+        // Establecer como seleccionada la sección de Clientes al inicio
+        binding.bottomNavigationView.selectedItemId = R.id.menu_clientes
         cargarClientes()
     }
 
@@ -81,8 +108,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-
 
     // Manejar la opción del menú para agregar un cliente
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

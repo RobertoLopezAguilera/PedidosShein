@@ -19,10 +19,16 @@ interface ClienteDao {
     @Delete
     fun deleteCliente(vararg cliente: Cliente)
 
+    @Query("DELETE FROM Cliente_table WHERE cliente_id = :id")
+    fun deleteClienteById(id: Int): Int
+
     @Update
-    fun updateAbono(cliente: Cliente)
+    fun updateCliente(cliente: Cliente)
 
     @Query("SELECT * FROM Cliente_table WHERE LOWER(nombre) LIKE '%' || :query || '%'")
     fun buscarClientes(query: String): List<Cliente>
+
+    @Delete
+    fun deleteClientes(clientes: List<Cliente>)
 
 }

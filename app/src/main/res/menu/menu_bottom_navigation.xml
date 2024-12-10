@@ -1,0 +1,14 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_clientes"
+        android:icon="@drawable/clientes"
+        android:title="Clientes" />
+    <item
+        android:id="@+id/menu_productos"
+        android:icon="@drawable/pedidos"
+        android:title="Productos" />
+    <item
+        android:id="@+id/menu_abonos"
+        android:icon="@drawable/abonos"
+        android:title="Abonos" />
+</menu>

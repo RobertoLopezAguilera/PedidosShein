@@ -30,51 +30,58 @@
             android:label="Detalles del Cliente"
             android:theme="@style/AppTheme">
         </activity>
-
         <activity
             android:name=".AgregarClienteActivity"
             android:exported="true"
             android:theme="@style/AppTheme">
         </activity>
-
         <activity
             android:name=".EditarClienteActivity"
             android:exported="true"
             android:theme="@style/AppTheme">
         </activity>
 
+
+
+        <activity
+            android:name=".ProductosActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme">
+        </activity>
         <activity
             android:name=".AgregarProductoActivity"
             android:exported="true"
             android:theme="@style/AppTheme">
         </activity>
-
-        <activity
-            android:name=".AgregarAbonoActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
-
         <activity
             android:name=".ProductoDetalleActivity"
             android:exported="true"
             android:label="Detalles del Producto"
             android:theme="@style/AppTheme">
         </activity>
-
         <activity
             android:name=".EditarProductoActivity"
             android:exported="true"
             android:theme="@style/AppTheme">
         </activity>
 
+
+        <activity
+            android:name=".AbonoActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme">
+        </activity>
+        <activity
+            android:name=".AgregarAbonoActivity"
+            android:exported="true"
+            android:theme="@style/AppTheme">
+        </activity>
         <activity
             android:name=".AbonoDetalleActivity"
             android:exported="true"
             android:label="Detalles del Producto"
             android:theme="@style/AppTheme">
         </activity>
-
         <activity
             android:name=".EditarAbonoActivity"
             android:exported="true"

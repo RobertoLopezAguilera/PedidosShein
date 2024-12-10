@@ -16,8 +16,12 @@ interface AbonoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAbono(vararg abono: Abono)
 
+    @Query("DELETE FROM abono_table WHERE cliente_id = :clienteId")
+    fun deleteAbonoByClienteId(clienteId: Int)
+
     @Delete
     fun deleteAbono(vararg abono: Abono)
+
     @Query("DELETE FROM abono_table WHERE abono_id = :id")
     fun deleteAbonoById(id: Int): Int
 

@@ -7,24 +7,24 @@
     android:background="@drawable/custom_background"
     android:orientation="vertical">
 
-    <!-- SwipeRefreshLayout para recargar la lista -->
+    <!-- Barra de navegación inferior -->
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
         android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_marginBottom="56dp"
-        android:padding="10dp"> <!-- Espacio reservado para la barra inferior -->
+        android:padding="20dp">
 
-        <!-- RecyclerView para la lista de clientes -->
+        <!-- RecyclerView para mostrar los productos -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvClientes"
+            android:id="@+id/rvProductos"
             android:layout_width="match_parent"
-            android:layout_height="600dp"
-            android:layout_margin="20dp"
-            app:cornerRadius="15dp"/>
+            android:layout_height="match_parent"
+            android:layout_marginBottom="56dp"
+            android:background="@drawable/rounded_background"
+            android:padding="20dp" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <!-- Barra de navegación inferior -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigationView"
         android:layout_width="match_parent"

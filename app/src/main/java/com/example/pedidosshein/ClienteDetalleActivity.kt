@@ -79,28 +79,27 @@ class ClienteDetalleActivity : AppCompatActivity() {
                     // Mostrar un cuadro de diálogo de confirmación
                     AlertDialog.Builder(this@ClienteDetalleActivity)
                         .setTitle("Eliminar Cliente")
-                        .setMessage("¿Estás seguro de que deseas eliminar este cliente? Esto también eliminará todos sus productos y abonos asociados.")
+                        .setMessage("¿Estás seguro de que deseas eliminar todos los productos y abonos asociados a este cliente?")
                         .setPositiveButton("Sí") { _, _ ->
-                            // Proceder con la eliminación
+                            // Proceder con la eliminación de productos y abonos sin borrar al cliente
                             GlobalScope.launch(Dispatchers.IO) {
                                 try {
-                                    db.clienteDao().deleteCliente(cliente)
-                                    db.productoDao().deleteProductoById(clienteId) // Asegúrate de que este método exista
-                                    db.abonoDao().deleteAbonoById(clienteId) // Asegúrate de que este método exista
+                                    db.productoDao().deleteProductoByClienteId(clienteId) // Eliminar productos según el ID del cliente
+                                    db.abonoDao().deleteAbonoByClienteId(clienteId) // Eliminar abonos según el ID del cliente
 
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(
                                             this@ClienteDetalleActivity,
-                                            "Cliente eliminado correctamente",
+                                            "Productos y abonos eliminados correctamente",
                                             Toast.LENGTH_SHORT
                                         ).show()
-                                        finish() // Regresar a la actividad anterior
+                                        cargarDatos(clienteId) // Recargar los datos del cliente para reflejar los cambios
                                     }
                                 } catch (e: Exception) {
                                     withContext(Dispatchers.Main) {
                                         Toast.makeText(
                                             this@ClienteDetalleActivity,
-                                            "Error al eliminar el cliente: ${e.message}",
+                                            "Error al eliminar productos y abonos: ${e.message}",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -115,7 +114,6 @@ class ClienteDetalleActivity : AppCompatActivity() {
             }
         }
     }
-
 
     private fun agregarAbono(clienteId: Int) {
         val intent = Intent(this, AgregarAbonoActivity::class.java)

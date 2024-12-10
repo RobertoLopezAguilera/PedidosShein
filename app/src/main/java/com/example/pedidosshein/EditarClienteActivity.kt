@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.appcompat.app.AlertDialog
 
 class EditarClienteActivity : AppCompatActivity() {
 
@@ -32,8 +33,11 @@ class EditarClienteActivity : AppCompatActivity() {
         }
 
         binding.btnGuardar.setOnClickListener {
-            // Guardar los cambios del cliente en la base de datos
             guardarCliente(clienteId)
+        }
+
+        binding.btnEliminar.setOnClickListener {
+            mostrarDialogoConfirmacion()
         }
     }
 
@@ -41,7 +45,6 @@ class EditarClienteActivity : AppCompatActivity() {
         GlobalScope.launch(Dispatchers.IO) {
             val cliente = db.clienteDao().getClienteById(clienteId)
             withContext(Dispatchers.Main) {
-                // Cargar los datos del cliente en los campos
                 binding.etNombre.setText(cliente?.nombre ?: "")
                 binding.etTelefono.setText(cliente?.telefono ?: "")
             }
@@ -54,9 +57,38 @@ class EditarClienteActivity : AppCompatActivity() {
 
         val cliente = Cliente(id = clienteId, nombre = nombre, telefono = telefono)
         GlobalScope.launch(Dispatchers.IO) {
-            db.clienteDao().updateAbono(cliente)
+            db.clienteDao().updateCliente(cliente)
             withContext(Dispatchers.Main) {
-                finish() // Regresar a la actividad anterior
+                Toast.makeText(this@EditarClienteActivity, "Cliente actualizado", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    private fun mostrarDialogoConfirmacion() {
+        AlertDialog.Builder(this)
+            .setTitle("Eliminar Cliente")
+            .setMessage("¿Estás seguro de que deseas eliminar este cliente? Se eliminarán todos los datos asociados.")
+            .setPositiveButton("Sí") { _, _ -> eliminarCliente() }
+            .setNegativeButton("No", null)
+            .show()
+    }
+
+    private fun eliminarCliente() {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                db.productoDao().deleteProductoByClienteId(clienteId)
+                db.abonoDao().deleteAbonoByClienteId(clienteId)
+                db.clienteDao().deleteClienteById(clienteId)
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EditarClienteActivity, "Cliente eliminado", Toast.LENGTH_SHORT).show()
+                    finish() // Cerrar la actividad y regresar a la anterior
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@EditarClienteActivity, "Error al eliminar cliente: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

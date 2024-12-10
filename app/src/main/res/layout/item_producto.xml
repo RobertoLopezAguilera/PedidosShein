@@ -3,15 +3,16 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="16dp"
+    android:layout_marginTop="8dp"
     android:background="?android:attr/selectableItemBackground">
 
     <TextView
         android:id="@+id/tvProductoNombre"
-        android:layout_width="wrap_content"
+        android:layout_width="210dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:text="Nombre del Producto"
-        android:textSize="18sp"
-        android:layout_weight="1"/>
+        android:textSize="18sp" />
 
     <TextView
         android:id="@+id/tvProductoPrecio"
