@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "468504190412",
+    "project_id": "pedidosshein-b2054",
+    "storage_bucket": "pedidosshein-b2054.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:468504190412:android:4b7310ee22ecde2c961169",
+        "android_client_info": {
+          "package_name": "com.example.pedidosshein"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD--GfhPLsmPmrjdXDkciV4BrcB9sMuit8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

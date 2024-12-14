@@ -162,6 +162,54 @@ class ClienteDetalleActivity : AppCompatActivity() {
             cargarCliente(clienteId)
             cargarDatos(clienteId)
         }
+
+        binding.btnShare.setOnClickListener {
+            compartirDatosCliente()
+        }
+    }
+
+    private fun compartirDatosCliente() {
+        GlobalScope.launch(Dispatchers.IO) {
+            val cliente = db.clienteDao().getClienteById(clienteId)
+            val productos = db.productoDao().getProductosByClienteId(clienteId)
+            val abonos = db.abonoDao().getAbonosByClienteId(clienteId)
+
+            val totalProductos = productos.sumOf { it.precio }
+            val totalAbonos = abonos.fold(0.0) { acc, abono -> acc + abono.monto }
+            val deudaRestante = totalProductos - totalAbonos
+
+            if (cliente != null) {
+                val productosTexto = productos.joinToString(separator = "\n") {
+                    "- ${it.nombre}: \$${it.precio}"
+                }
+                val abonosTexto = abonos.joinToString(separator = "\n") {
+                    "- Monto: \$${it.monto}, Fecha: ${it.fecha}"
+                }
+
+                val mensaje = """
+                    Información del Cliente:
+                    Nombre: ${cliente.nombre}
+                    Teléfono: ${cliente.telefono}
+                    
+                    Productos:
+                    $productosTexto
+                    
+                    Abonos:
+                    $abonosTexto
+                    
+                    Deuda Restante: \$${deudaRestante}
+                """.trimIndent()
+
+                withContext(Dispatchers.Main) {
+                    // Compartir usando un Intent
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, mensaje)
+                    }
+                    startActivity(Intent.createChooser(intent, "Compartir con"))
+                }
+            }
+        }
     }
 
     private fun cargarCliente(clienteId: Int) {
@@ -174,6 +222,7 @@ class ClienteDetalleActivity : AppCompatActivity() {
             }
         }
     }
+
 
     private fun cargarDatos(clienteId: Int) {
         // Iniciar el refresco visual del SwipeRefreshLayout

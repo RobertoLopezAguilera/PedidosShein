@@ -31,4 +31,7 @@ interface ClienteDao {
     @Delete
     fun deleteClientes(clientes: List<Cliente>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAll(clientes: List<Cliente>)
+
 }

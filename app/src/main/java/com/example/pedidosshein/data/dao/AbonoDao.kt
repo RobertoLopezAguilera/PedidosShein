@@ -30,4 +30,7 @@ interface AbonoDao {
 
     @Update
     fun updateAbono(abono: Abono)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAll(abonos: List<Abono>)
 }

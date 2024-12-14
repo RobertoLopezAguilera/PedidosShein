@@ -111,7 +111,7 @@ class ProductoDetalleActivity : AppCompatActivity() {
                                 Toast.makeText(this@ProductoDetalleActivity, "Producto eliminado", Toast.LENGTH_SHORT).show()
                                 finish()
                             } else {
-                                Toast.makeText(this@ProductoDetalleActivity, "Error al eliminar el producto", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@ProductoDetalleActivity, "Error: Producto no encontrado", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } catch (e: Exception) {

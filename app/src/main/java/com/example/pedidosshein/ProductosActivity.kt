@@ -1,20 +1,22 @@
 package com.example.pedidosshein
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.pedidosshein.data.adapters.ProductoAdapter
 import com.example.pedidosshein.data.database.AppDatabase
-import com.example.pedidosshein.data.entities.Producto
 import com.example.pedidosshein.databinding.ActivityProductosBinding
+import com.example.pedidosshein.databinding.NavigationHeaderBinding
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ProductosActivity : AppCompatActivity() {
-
     private lateinit var binding: ActivityProductosBinding
     private lateinit var productoAdapter: ProductoAdapter
     private lateinit var db: AppDatabase
@@ -30,14 +32,10 @@ class ProductosActivity : AppCompatActivity() {
 
         // Configurar RecyclerView
         binding.rvProductos.layoutManager = LinearLayoutManager(this)
-        productoAdapter = ProductoAdapter(emptyList()) { producto ->
-            onProductoClick(producto)
-        }
-        binding.rvProductos.adapter = productoAdapter
 
         // Configurar SwipeRefreshLayout
         binding.swipeRefreshLayout.setOnRefreshListener {
-            cargarProductos() // Cargar productos al hacer "swipe" para refrescar
+            cargarProductos()
         }
 
         // Configurar navegación inferior
@@ -45,50 +43,82 @@ class ProductosActivity : AppCompatActivity() {
 
         // Cargar productos
         cargarProductos()
+
+        binding.navigationView.setNavigationItemSelectedListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_perfil -> {
+                    startActivity(Intent(this, PerfilActivity::class.java))
+                    true
+                }
+                R.id.nav_cerrar_sesion -> {
+                    logout()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun logout() {
+        val sharedPreferences = getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+        sharedPreferences.edit().clear().apply()
+        FirebaseAuth.getInstance().signOut()
+        Toast.makeText(this, "Sesión cerrada con éxito", Toast.LENGTH_SHORT).show()
+
+        val intent = Intent(this, LoginActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+        finish()
+    }
+
+    private fun setupNavigationHeader(userEmail: String) {
+        val headerBinding = NavigationHeaderBinding.bind(binding.navigationView.getHeaderView(0))
+        headerBinding.userEmail.text = userEmail
     }
 
     private fun cargarProductos() {
-        // Mostrar el indicador de carga mientras se obtienen los productos
+        // Mostrar indicador de carga
         binding.swipeRefreshLayout.isRefreshing = true
 
-        // Cargar productos de la base de datos en segundo plano
-        GlobalScope.launch(Dispatchers.IO) {
-            val productos = db.productoDao().getAllProductos() // Método para obtener productos
+        lifecycleScope.launch(Dispatchers.IO) {
+            val productos = db.productoDao().getAllProductos()
             withContext(Dispatchers.Main) {
-                // Actualizar el adapter con la lista de productos
-                productoAdapter.setProductos(productos)
-                // Desactivar el indicador de carga
+                // Configurar adaptador si no está inicializado
+                if (!::productoAdapter.isInitialized) {
+                    productoAdapter = ProductoAdapter(productos) { producto ->
+                        mostrarDetallesCliente(producto.clienteId) // Paso 1: Navegar a detalles del cliente
+                    }
+                    binding.rvProductos.adapter = productoAdapter
+                } else {
+                    // Actualizar productos si ya existe el adaptador
+                    productoAdapter.setProductos(productos)
+                }
+                // Ocultar indicador de carga
                 binding.swipeRefreshLayout.isRefreshing = false
             }
         }
     }
 
-    private fun onProductoClick(producto: Producto) {
-        // Acción cuando se hace clic en un producto
-        val intent = Intent(this, ProductoDetalleActivity::class.java)
-        intent.putExtra("productoId", producto.id)
-        startActivity(intent)
+    private fun mostrarDetallesCliente(clienteId: Int) {
+        val intent = Intent(this, ClienteDetalleActivity::class.java)
+        intent.putExtra("CLIENTE_ID", clienteId) // Paso 2: Enviar ID del cliente
+        startActivity(intent) // Paso 3: Navegar a ClienteDetalleActivity
     }
 
     private fun configurarBottomNavigation() {
-        binding.bottomNavigationView.selectedItemId = R.id.menu_productos // Seleccionar "Productos"
+        binding.bottomNavigationView.selectedItemId = R.id.menu_productos
 
         binding.bottomNavigationView.setOnItemSelectedListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.menu_clientes -> {
-                    val intent = Intent(this, MainActivity::class.java)
-                    startActivity(intent)
-                    finish() // Opcional: cerrar la actividad actual para evitar acumulación
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
                     true
                 }
-                R.id.menu_productos -> {
-                    // Ya estamos en la actividad de productos
-                    true
-                }
+                R.id.menu_productos -> true
                 R.id.menu_abonos -> {
-                    val intent = Intent(this, AbonoActivity::class.java)
-                    startActivity(intent)
-                    finish() // Opcional
+                    startActivity(Intent(this, AbonoActivity::class.java))
+                    finish()
                     true
                 }
                 else -> false

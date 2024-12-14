@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/btnRespaldar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Guardar datos"
+        android:background="@drawable/custom_botones"
+        android:textColor="@color/white"
+        android:drawableStart="@drawable/ic_backup"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:layout_gravity="center"/>
+
+    <Button
+        android:id="@+id/btnRestaurar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Restaurar Datos"
+        android:background="@drawable/custom_botones3"
+        android:textColor="@color/white"
+        android:drawableStart="@drawable/ic_restore"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:layout_gravity="center"/>
+
+    <Button
+        android:id="@+id/btnExportarExcel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Descargar Excel"
+        android:drawableStart="@drawable/icon_excel"
+        android:paddingLeft="20dp"
+        android:paddingRight="20dp"
+        android:layout_gravity="center"/>
+</LinearLayout>

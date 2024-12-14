@@ -1,0 +1,22 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/nav_perfil"
+        android:icon="@drawable/iconamoonprofilecirclefill"
+        android:title="Opciones de perfil"/>
+    <item
+        android:id="@+id/nav_cerrar_sesion"
+        android:icon="@drawable/icon_logout"
+        android:title="Cerrar sesión"/>
+
+    <!--
+    <item
+        android:id="@+id/nav_respaldo"
+        android:icon="@drawable/ic_backup"
+        android:title="Respaldar datos" />
+    <item
+        android:id="@+id/nav_restaurar"
+        android:icon="@drawable/ic_restore"
+        android:title="Restaurar datos" />
+        -->
+</menu>

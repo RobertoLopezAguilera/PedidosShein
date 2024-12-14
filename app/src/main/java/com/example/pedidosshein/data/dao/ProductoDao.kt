@@ -18,9 +18,15 @@ interface ProductoDao {
     @Query("DELETE FROM producto_table WHERE cliente_id = :clienteId")
     fun deleteProductoByClienteId(clienteId: Int)
 
+    @Query("DELETE FROM producto_table WHERE producto_id = :productoId")
+    fun deleteProductoById(productoId: Int): Int
+
     @Query("SELECT * FROM Producto_table WHERE cliente_id = :clienteId")
     fun getProductosByClienteId(clienteId: Int): List<Producto>
 
     @Update
     fun updateProducto(producto: Producto)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun insertAll(productos: List<Producto>)
 }
