@@ -85,5 +85,18 @@ dependencies {
 
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.4")
     implementation ("org.apache.poi:poi:4.0.0")
+    implementation("org.apache.poi:poi-ooxml:5.2.3")
+    implementation("com.google.android.gms:play-services-ads:22.0.0")
 
+    implementation ("androidx.activity:activity-compose:1.8.0")
+    implementation ("androidx.compose.ui:ui:1.5.0")
+    implementation ("androidx.compose.material:material:1.5.0")
+    implementation ("androidx.compose.ui:ui-tooling-preview:1.5.0")
+    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
+    implementation ("androidx.navigation:navigation-compose:2.7.0")
+
+    implementation("androidx.compose.material:material-icons-extended:1.5.0") // Ajusta a la versión Compose que usas
+    implementation("com.google.accompanist:accompanist-swiperefresh:0.30.1")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }

@@ -2,126 +2,172 @@ package com.example.pedidosshein
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
-import com.example.pedidosshein.databinding.ActivityAbonoDetalleBinding
+import com.example.pedidosshein.data.entities.Abono
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class AbonoDetalleActivity : AppCompatActivity() {
+class AbonoDetalleActivity : ComponentActivity() {
 
-    private lateinit var binding: ActivityAbonoDetalleBinding
-    private lateinit var db: AppDatabase
     private var abonoId: Int = -1
+    private val recargarAbono = mutableStateOf(false)
 
-    // Registrar el resultado de la edición del abono
     private val editarAbonoLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                recargarAbono()
-            }
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            recargarAbono.value = true
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // Inicializar View Binding
-        binding = ActivityAbonoDetalleBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        db = AppDatabase.getInstance(this)
-
-        // Obtener los datos del Intent
         abonoId = intent.getIntExtra("ABONO_ID", -1)
-        if (abonoId == -1) {
-            Toast.makeText(this, "Error: Abono no encontrado", Toast.LENGTH_SHORT).show()
-            finish()
-            return
-        }
 
-        recargarAbono()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_abono_detalle, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.action_editar -> {
-                editarAbono()
-                return true
-            }
-            R.id.action_eliminar -> {
-                eliminarAbono()
-                return true
-            }
-        }
-        return super.onOptionsItemSelected(item)
-    }
-
-    private fun recargarAbono() {
-        GlobalScope.launch(Dispatchers.IO) {
-            val abono = db.abonoDao().getAbonoById(abonoId)
-            withContext(Dispatchers.Main) {
-                if (abono != null) {
-                    binding.tvAbonoMonto.text = "Monto: \$${"%.2f".format(abono.monto)}"
-                    binding.tvAbonoFecha.text = "Fecha: ${abono.fecha}"
-                } else {
-                    Toast.makeText(this@AbonoDetalleActivity, "Abono no encontrado", Toast.LENGTH_SHORT).show()
-                    finish()
-                }
+        setContent {
+            if (abonoId == -1) {
+                Toast.makeText(this, "Abono no encontrado", Toast.LENGTH_SHORT).show()
+                finish()
+            } else {
+                AbonoDetalleScreen(
+                    abonoId = abonoId,
+                    recargarTrigger = recargarAbono.value,
+                    onRecargaConsumida = { recargarAbono.value = false },
+                    onEditar = { id ->
+                        val intent = Intent(this, EditarAbonoActivity::class.java)
+                        intent.putExtra("ABONO_ID", id)
+                        editarAbonoLauncher.launch(intent)
+                    },
+                    onEliminar = { finish() }
+                )
             }
         }
     }
+}
 
-    private fun editarAbono() {
-        GlobalScope.launch(Dispatchers.IO) {
-            val abono = db.abonoDao().getAbonoById(abonoId)
-            withContext(Dispatchers.Main) {
-                if (abono != null) {
-                    val intent = Intent(this@AbonoDetalleActivity, EditarAbonoActivity::class.java)
-                    intent.putExtra("ABONO_ID", abonoId)
-                    editarAbonoLauncher.launch(intent) // Usar launcher para iniciar la actividad
-                } else {
-                    Toast.makeText(this@AbonoDetalleActivity, "Abono no encontrado", Toast.LENGTH_SHORT).show()
-                }
+@Composable
+fun AbonoDetalleScreen(
+    abonoId: Int,
+    recargarTrigger: Boolean,
+    onRecargaConsumida: () -> Unit,
+    onEditar: (Int) -> Unit,
+    onEliminar: () -> Unit
+) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getInstance(context) }
+    val scope = rememberCoroutineScope()
+
+    var abono by remember { mutableStateOf<Abono?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Carga inicial
+    LaunchedEffect(abonoId) {
+        scope.launch(Dispatchers.IO) {
+            abono = db.abonoDao().getAbonoById(abonoId)
+        }
+    }
+
+    // Recarga si fue activado
+    LaunchedEffect(recargarTrigger) {
+        if (recargarTrigger) {
+            scope.launch(Dispatchers.IO) {
+                abono = db.abonoDao().getAbonoById(abonoId)
+                onRecargaConsumida()
             }
         }
     }
 
-    private fun eliminarAbono() {
-        AlertDialog.Builder(this)
-            .setTitle("Eliminar Abono")
-            .setMessage("¿Estás seguro de que deseas eliminar este abono?")
-            .setPositiveButton("Sí") { _, _ ->
-                GlobalScope.launch(Dispatchers.IO) {
-                    try {
-                        val abonosEliminados = db.abonoDao().deleteAbonoById(abonoId)
-                        withContext(Dispatchers.Main) {
-                            if (abonosEliminados > 0) {
-                                Toast.makeText(this@AbonoDetalleActivity, "Abono eliminado", Toast.LENGTH_SHORT).show()
-                                finish()
-                            } else {
-                                Toast.makeText(this@AbonoDetalleActivity, "Error al eliminar el abono", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@AbonoDetalleActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Detalle del Abono") },
+                actions = {
+                    IconButton(onClick = { onEditar(abonoId) }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.icon_editar),
+                            contentDescription = "Editar abono",
+                            tint = Color.Unspecified
+                        )
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.borrar_cliente),
+                            contentDescription = "Eliminar abono",
+                            tint = Color.Unspecified
+                        )
                     }
                 }
+            )
+        }
+    ) { paddingValues ->
+        abono?.let { abn ->
+            Column(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .padding(16.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Monto: \$${"%.2f".format(abn.monto)}",
+                    style = MaterialTheme.typography.h5,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = "Fecha: ${abn.fecha}",
+                    style = MaterialTheme.typography.body1
+                )
             }
-            .setNegativeButton("No", null)
-            .show()
+        } ?: Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar abono") },
+            text = { Text("¿Estás seguro de que deseas eliminar este abono?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    scope.launch(Dispatchers.IO) {
+                        val eliminado = db.abonoDao().deleteAbonoById(abonoId)
+                        launch(Dispatchers.Main) {
+                            if (eliminado > 0) {
+                                Toast.makeText(context, "Abono eliminado", Toast.LENGTH_SHORT).show()
+                                onEliminar()
+                            } else {
+                                Toast.makeText(context, "Error al eliminar abono", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }) {
+                    Text("Sí")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("No")
+                }
+            }
+        )
     }
 }

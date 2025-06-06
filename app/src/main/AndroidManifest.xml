@@ -2,6 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Permisos requeridos -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,8 +22,26 @@
         android:roundIcon="@mipmap/ic_launcher_shein_foreground"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        android:requestLegacyExternalStorage="true"
         tools:targetApi="31">
 
+        <!-- AdMob -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
+
+        <!-- FileProvider -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Actividades -->
         <activity
             android:name=".LoginActivity"
             android:launchMode="singleTask"
@@ -29,83 +58,72 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="Pedidos Shein"
-            android:theme="@style/SplashTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
 
-        <!-- Nueva actividad para ver detalles del cliente -->
         <activity
             android:name=".ClienteDetalleActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Cliente"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".PerfilActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Opciones"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".AgregarClienteActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".EditarClienteActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
-
-
+            android:exported="false"
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".ProductosActivity"
             android:exported="true"
             android:label="Productos"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".AgregarProductoActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".ProductoDetalleActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Detalles del Producto"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".EditarProductoActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
-
+            android:exported="false"
+            android:theme="@style/AppTheme" />
 
         <activity
             android:name=".AbonoActivity"
             android:exported="true"
             android:label="Abonos"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".AgregarAbonoActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:exported="false"
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".AbonoDetalleActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="Abono"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:theme="@style/AppTheme" />
+
         <activity
             android:name=".EditarAbonoActivity"
-            android:exported="true"
-            android:theme="@style/AppTheme">
-        </activity>
+            android:exported="false"
+            android:theme="@style/AppTheme" />
     </application>
-
 </manifest>

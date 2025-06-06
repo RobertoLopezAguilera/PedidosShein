@@ -1,6 +1,7 @@
 package com.example.pedidosshein.data.dao
 
 import androidx.room.*
+import com.example.pedidosshein.data.entities.Cliente
 import com.example.pedidosshein.data.entities.Producto
 
 @Dao
@@ -11,6 +12,9 @@ interface ProductoDao {
 
     @Query("SELECT * FROM Producto_table WHERE producto_id = :id")
     fun getProductoById(id: Int): Producto?
+
+    @Query("SELECT * FROM Producto_table WHERE precio = :pre")
+    fun getProductoPrecio(pre: Int): Producto?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertProducto(vararg producto: Producto)
@@ -29,4 +33,8 @@ interface ProductoDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(productos: List<Producto>)
+
+    @Query("SELECT * FROM Producto_table WHERE LOWER(nombre) LIKE '%' || :query || '%'")
+    fun buscarProductos(query: String): List<Producto>
+
 }

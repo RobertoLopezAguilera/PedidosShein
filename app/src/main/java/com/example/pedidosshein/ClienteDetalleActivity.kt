@@ -2,274 +2,584 @@ package com.example.pedidosshein
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.registerForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.pedidosshein.data.adapters.AbonoAdapter
-import com.example.pedidosshein.data.adapters.ProductoAdapter
+import androidx.appcompat.app.AlertDialog
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
-import com.example.pedidosshein.databinding.ActivityClienteDetalleBinding
+import com.example.pedidosshein.data.entities.Abono
+import com.example.pedidosshein.data.entities.Producto
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import java.text.NumberFormat
+import kotlin.properties.Delegates
 
-class ClienteDetalleActivity : AppCompatActivity() {
+class ClienteDetalleActivity : ComponentActivity() {
+    private var recargarDatos by mutableStateOf(false)
+    private var clienteId by Delegates.notNull<Int>()
 
-    private lateinit var binding: ActivityClienteDetalleBinding
-    private lateinit var db: AppDatabase
-    private lateinit var productoAdapter: ProductoAdapter
-    private lateinit var abonoAdapter: AbonoAdapter
-    private var clienteId: Int = -1
+    private val editarProductoLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { if (it.resultCode == RESULT_OK) recargarDatos = true }
 
-    // Registrar el resultado de la edición del producto
-    private val editarProductoLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                cargarDatos(clienteId) // Recargar los datos del cliente
-            }
-        }
+    private val editarAbonoLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { if (it.resultCode == RESULT_OK) recargarDatos = true }
 
-    // Registrar el resultado de la edición del abono
-    private val editarAbonoLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                cargarDatos(clienteId) // Recargar los datos del cliente
-            }
-        }
-
-    // Crear el menú de opciones
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.menu_cliente_detalle, menu)
-        return true
-    }
-
-    // Manejar la selección de un ítem del menú
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.menu_editar_cliente -> {
-                editarCliente(clienteId)
-                true
-            }
-            R.id.menu_agregar_producto -> {
-                agregarProducto(clienteId)
-                true
-            }
-            R.id.menu_agregar_abono -> {
-                agregarAbono(clienteId)
-                true
-            }
-            R.id.menu_borrar_cliente -> {
-                borrarCliente(clienteId)
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-
-    private fun borrarCliente(clienteId: Int) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val cliente = db.clienteDao().getClienteById(clienteId)
-            withContext(Dispatchers.Main) {
-                if (cliente != null) {
-                    // Mostrar un cuadro de diálogo de confirmación
-                    AlertDialog.Builder(this@ClienteDetalleActivity)
-                        .setTitle("Eliminar Cliente")
-                        .setMessage("¿Estás seguro de que deseas eliminar todos los productos y abonos asociados a este cliente?")
-                        .setPositiveButton("Sí") { _, _ ->
-                            // Proceder con la eliminación de productos y abonos sin borrar al cliente
-                            GlobalScope.launch(Dispatchers.IO) {
-                                try {
-                                    db.productoDao().deleteProductoByClienteId(clienteId) // Eliminar productos según el ID del cliente
-                                    db.abonoDao().deleteAbonoByClienteId(clienteId) // Eliminar abonos según el ID del cliente
-
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            this@ClienteDetalleActivity,
-                                            "Productos y abonos eliminados correctamente",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                        cargarDatos(clienteId) // Recargar los datos del cliente para reflejar los cambios
-                                    }
-                                } catch (e: Exception) {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            this@ClienteDetalleActivity,
-                                            "Error al eliminar productos y abonos: ${e.message}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            }
-                        }
-                        .setNegativeButton("No", null)
-                        .show()
-                } else {
-                    Toast.makeText(this@ClienteDetalleActivity, "Error: Cliente no encontrado", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun agregarAbono(clienteId: Int) {
-        val intent = Intent(this, AgregarAbonoActivity::class.java)
-        intent.putExtra("CLIENTE_ID", clienteId)
-        startActivity(intent) // Iniciar la actividad para agregar el abono
-    }
-
-    private fun agregarProducto(clienteId: Int) {
-        val intent = Intent(this, AgregarProductoActivity::class.java)
-        intent.putExtra("CLIENTE_ID", clienteId)
-        startActivity(intent) // Iniciar la actividad para agregar el producto
-    }
-
-
-    private fun editarCliente(clienteId: Int) {
-        val intent = Intent(this, EditarClienteActivity::class.java)
-        intent.putExtra("CLIENTE_ID", clienteId)
-        startActivity(intent)
+    override fun onResume() {
+        super.onResume()
+        recargarDatos = true
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Inicializar View Binding
-        binding = ActivityClienteDetalleBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        db = AppDatabase.getInstance(this)
-
-        // Configurar RecyclerView para los productos
-        binding.rvProductos.layoutManager = LinearLayoutManager(this)
-
-        // Configurar RecyclerView para los abonos
-        binding.rvAbonos.layoutManager = LinearLayoutManager(this)
-
-        // Configurar SwipeRefreshLayout para actualizar los datos
-        binding.swipeRefreshLayout.setOnRefreshListener {
-            cargarDatos(clienteId) // Recargar los datos cuando se deslice hacia abajo
-        }
-
-        // Obtener el ID del cliente del Intent
         clienteId = intent.getIntExtra("CLIENTE_ID", -1)
-
-        // Asegurarse de que el ID es válido
-        if (clienteId != -1) {
-            cargarCliente(clienteId)
-            cargarDatos(clienteId)
+        if (clienteId == -1) {
+            Toast.makeText(this, "ID de cliente inválido", Toast.LENGTH_SHORT).show()
+            finish()
+            return
         }
 
-        binding.btnShare.setOnClickListener {
-            compartirDatosCliente()
+        setContent {
+            ClienteDetalleContent()
         }
     }
 
-    private fun compartirDatosCliente() {
-        GlobalScope.launch(Dispatchers.IO) {
-            val cliente = db.clienteDao().getClienteById(clienteId)
-            val productos = db.productoDao().getProductosByClienteId(clienteId)
-            val abonos = db.abonoDao().getAbonosByClienteId(clienteId)
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ClienteDetalleContent() {
+        val context = LocalContext.current
+        val db = remember { AppDatabase.getInstance(context) }
+        val scope = rememberCoroutineScope()
 
-            val totalProductos = productos.sumOf { it.precio }
-            val totalAbonos = abonos.fold(0.0) { acc, abono -> acc + abono.monto }
-            val deudaRestante = totalProductos - totalAbonos
+        // Estados
+        var clienteNombre by remember { mutableStateOf("Cargando...") }
+        var clienteTelefono by remember { mutableStateOf("Cargando...") }
+        var productos by remember { mutableStateOf(emptyList<Producto>()) }
+        var abonos by remember { mutableStateOf(emptyList<Abono>()) }
+        var refreshing by remember { mutableStateOf(false) }
+        var expandirProductos by remember { mutableStateOf(false) }
+        var expandirAbonos by remember { mutableStateOf(false) }
 
-            if (cliente != null) {
-                val productosTexto = productos.joinToString(separator = "\n") {
-                    "- ${it.nombre}: \$${it.precio}"
-                }
-                val abonosTexto = abonos.joinToString(separator = "\n") {
-                    "- Monto: \$${it.monto}, Fecha: ${it.fecha}"
-                }
+        // Paleta de colores
+        val primaryColor = colorResource(id = R.color.purple_500)
+        val primaryContainer = colorResource(id = R.color.purple_200)
+        val background = colorResource(id = R.color.background)
+        val surface = colorResource(id = R.color.surface)
+        val onSurface = colorResource(id = R.color.on_surface)
+        val errorColor = colorResource(id = R.color.red_400)
+        val successColor = colorResource(id = R.color.green_400)
+        val infoColor = colorResource(id = R.color.blue_400)
 
-                val mensaje = """
-                    Información del Cliente:
-                    Nombre: ${cliente.nombre}
-                    Teléfono: ${cliente.telefono}
-                    
-                    Productos:
-                    $productosTexto
-                    
-                    Abonos:
-                    $abonosTexto
-                    
-                    Deuda Restante: \$${deudaRestante}
-                """.trimIndent()
+        // Cálculos financieros
+        val totalProductos = productos.sumOf { it.precio }
+        val totalAbonos = abonos.sumOf { it.monto }
+        val deuda = totalProductos - totalAbonos
+        val deudaColor = when {
+            deuda > 0 -> errorColor
+            deuda < 0 -> infoColor
+            else -> successColor
+        }
+
+        // Función para cargar datos
+        fun cargarDatos() {
+            refreshing = true
+            scope.launch(Dispatchers.IO) {
+                val cliente = db.clienteDao().getClienteById(clienteId)
+                val productosDB = db.productoDao().getProductosByClienteId(clienteId)
+                val abonosDB = db.abonoDao().getAbonosByClienteId(clienteId)
 
                 withContext(Dispatchers.Main) {
-                    // Compartir usando un Intent
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, mensaje)
+                    clienteNombre = cliente?.nombre ?: "Desconocido"
+                    clienteTelefono = cliente?.telefono ?: "Desconocido"
+                    productos = productosDB
+                    abonos = abonosDB
+                    refreshing = false
+                }
+            }
+        }
+
+        // Efectos para cargar datos
+        LaunchedEffect(Unit) { cargarDatos() }
+        LaunchedEffect(recargarDatos) {
+            if (recargarDatos) {
+                cargarDatos()
+                recargarDatos = false
+            }
+        }
+
+        // Función para formatear moneda
+        fun formatCurrency(amount: Double): String {
+            return NumberFormat.getCurrencyInstance().format(amount)
+        }
+
+        // Diseño de la pantalla
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = background
+        ) {
+            Scaffold(
+                topBar = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(primaryColor, primaryContainer)
+                                )
+                            )
+                    ) {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    "Detalle de Cliente",
+                                    color = Color.White,
+                                    style = typography.titleLarge
+                                )
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                actionIconContentColor = Color.White
+                            ),
+                            actions = {
+                                IconButton(
+                                    onClick = {
+                                        startActivity(
+                                            Intent(context, EditarClienteActivity::class.java).apply {
+                                                putExtra("CLIENTE_ID", clienteId)
+                                            }
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.icon_editar_cliente),
+                                        contentDescription = "Editar cliente"
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        startActivity(
+                                            Intent(context, AgregarProductoActivity::class.java).apply {
+                                                putExtra("CLIENTE_ID", clienteId)
+                                            }
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.icon_pedidos),
+                                        contentDescription = "Agregar producto"
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        startActivity(
+                                            Intent(context, AgregarAbonoActivity::class.java).apply {
+                                                putExtra("CLIENTE_ID", clienteId)
+                                            }
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.icon_agregar_abono),
+                                        contentDescription = "Agregar abono"
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        AlertDialog.Builder(context)
+                                            .setTitle("Eliminar registros")
+                                            .setMessage("¿Eliminar productos y abonos del cliente?")
+                                            .setPositiveButton("Sí") { _, _ ->
+                                                scope.launch(Dispatchers.IO) {
+                                                    db.productoDao().deleteProductoByClienteId(clienteId)
+                                                    db.abonoDao().deleteAbonoByClienteId(clienteId)
+                                                    withContext(Dispatchers.Main) {
+                                                        Toast.makeText(
+                                                            context,
+                                                            "Registros eliminados",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+                                                        cargarDatos()
+                                                    }
+                                                }
+                                            }
+                                            .setNegativeButton("No", null)
+                                            .show()
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.borrar_cliente),
+                                        contentDescription = "Eliminar registros"
+                                    )
+                                }
+                            }
+                        )
                     }
-                    startActivity(Intent.createChooser(intent, "Compartir con"))
+                },
+                floatingActionButton = {
+                    FloatingActionButton(
+                        onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                val cliente = db.clienteDao().getClienteById(clienteId)
+                                val productos = db.productoDao().getProductosByClienteId(clienteId)
+                                val abonos = db.abonoDao().getAbonosByClienteId(clienteId)
+                                val totalProductos = productos.sumOf { it.precio }
+                                val totalAbonos = abonos.sumOf { it.monto }
+                                val deuda = totalProductos - totalAbonos
+
+                                val mensaje = buildString {
+                                    appendLine("Cliente: ${cliente?.nombre}")
+                                    appendLine("Teléfono: ${cliente?.telefono}")
+                                    appendLine()
+                                    appendLine("Productos (Total: ${formatCurrency(totalProductos)}):")
+                                    productos.forEach { producto ->
+                                        appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
+                                    }
+                                    appendLine()
+                                    appendLine("Abonos (Total: ${formatCurrency(totalAbonos)}):")
+                                    abonos.forEach { abono ->
+                                        appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
+                                    }
+                                    appendLine()
+                                    appendLine("Deuda restante: ${formatCurrency(deuda)}")
+                                }
+
+                                withContext(Dispatchers.Main) {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, mensaje)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Compartir detalles"))
+                                }
+                            }
+                        },
+                        containerColor = primaryColor,
+                        contentColor = Color.White
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Compartir")
+                    }
+                }
+            ) { padding ->
+                SwipeRefresh(
+                    state = rememberSwipeRefreshState(isRefreshing = refreshing),
+                    onRefresh = { cargarDatos() },
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Información del cliente
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                colors = CardDefaults.cardColors(containerColor = surface)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = clienteNombre,
+                                            style = typography.titleLarge,
+                                            color = onSurface
+                                        )
+                                        Text(
+                                            text = formatCurrency(deuda),
+                                            style = typography.titleLarge,
+                                            color = deudaColor,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Text(
+                                        text = clienteTelefono,
+                                        style = typography.bodyMedium,
+                                        color = onSurface.copy(alpha = 0.7f)
+                                    )
+
+                                    // Estado de la deuda
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .background(
+                                                    color = deudaColor,
+                                                    shape = CircleShape
+                                                )
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = when {
+                                                deuda > 0 -> "Deuda pendiente"
+                                                deuda < 0 -> "Saldo a favor"
+                                                else -> "Cuenta al día"
+                                            },
+                                            style = typography.bodyMedium,
+                                            color = deudaColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Resumen financiero
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Total productos
+                                Card(
+                                    modifier = Modifier.weight(1f),
+                                    colors = CardDefaults.cardColors(containerColor = surface)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Productos",
+                                            style = typography.labelMedium,
+                                            color = onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Text(
+                                            text = formatCurrency(totalProductos),
+                                            style = typography.titleMedium,
+                                            color = primaryColor
+                                        )
+                                    }
+                                }
+
+                                // Total abonos
+                                Card(
+                                    modifier = Modifier.weight(1f),
+                                    colors = CardDefaults.cardColors(containerColor = surface)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Abonos",
+                                            style = typography.labelMedium,
+                                            color = onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Text(
+                                            text = formatCurrency(totalAbonos),
+                                            style = typography.titleMedium,
+                                            color = successColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Sección de productos
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = surface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { expandirProductos = !expandirProductos }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Productos (${productos.size})",
+                                            style = typography.titleMedium,
+                                            color = onSurface
+                                        )
+                                        Icon(
+                                            imageVector = if (expandirProductos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (expandirProductos) "Contraer" else "Expandir",
+                                            tint = primaryColor
+                                        )
+                                    }
+
+                                    AnimatedVisibility(visible = expandirProductos) {
+                                        Column {
+                                            productos.forEach { producto ->
+                                                Card(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        .clickable {
+                                                            editarProductoLauncher.launch(
+                                                                Intent(
+                                                                    context,
+                                                                    ProductoDetalleActivity::class.java
+                                                                ).apply {
+                                                                    putExtra("PRODUCTO_ID", producto.id)
+                                                                }
+                                                            )
+                                                        },
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = surface.copy(alpha = 0.8f)
+                                                    )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = producto.nombre ?: "Sin nombre",
+                                                                style = typography.bodyLarge,
+                                                                color = onSurface,
+                                                                maxLines = 1,
+                                                                overflow = TextOverflow.Ellipsis
+                                                            )
+                                                        }
+
+                                                        Text(
+                                                            text = formatCurrency(producto.precio),
+                                                            style = typography.bodyLarge,
+                                                            color = primaryColor,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Sección de abonos
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = surface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { expandirAbonos = !expandirAbonos }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "Abonos (${abonos.size})",
+                                            style = typography.titleMedium,
+                                            color = onSurface
+                                        )
+                                        Icon(
+                                            imageVector = if (expandirAbonos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (expandirAbonos) "Contraer" else "Expandir",
+                                            tint = primaryColor
+                                        )
+                                    }
+
+                                    AnimatedVisibility(visible = expandirAbonos) {
+                                        Column {
+                                            abonos.forEach { abono ->
+                                                Card(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        .clickable {
+                                                            editarAbonoLauncher.launch(
+                                                                Intent(
+                                                                    context,
+                                                                    AbonoDetalleActivity::class.java
+                                                                ).apply {
+                                                                    putExtra("ABONO_ID", abono.id)
+                                                                }
+                                                            )
+                                                        },
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = surface.copy(alpha = 0.8f)
+                                                    )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                text = "Abono del ${abono.fecha}",
+                                                                style = typography.bodyLarge,
+                                                                color = onSurface
+                                                            )
+                                                        }
+
+                                                        Text(
+                                                            text = formatCurrency(abono.monto),
+                                                            style = typography.bodyLarge,
+                                                            color = successColor,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(80.dp))
+                        }
+                    }
                 }
             }
         }
-    }
-
-    private fun cargarCliente(clienteId: Int) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val cliente = db.clienteDao().getClienteById(clienteId)
-            withContext(Dispatchers.Main) {
-                // Establecer los datos del cliente
-                binding.tvClienteNombre.text = cliente?.nombre ?: "Desconocido"
-                binding.tvClienteTelefono.text = cliente?.telefono ?: "Desconocido"
-            }
-        }
-    }
-
-
-    private fun cargarDatos(clienteId: Int) {
-        // Iniciar el refresco visual del SwipeRefreshLayout
-        binding.swipeRefreshLayout.isRefreshing = true
-
-        GlobalScope.launch(Dispatchers.IO) {
-            val productos = db.productoDao().getProductosByClienteId(clienteId)
-            val totalProductos = productos.sumOf { it.precio }
-
-            val abonos = db.abonoDao().getAbonosByClienteId(clienteId)
-            val totalAbonos = abonos.fold(0.0) { acc, abono -> acc + abono.monto }
-
-            val restante = totalProductos - totalAbonos
-
-            withContext(Dispatchers.Main) {
-                // Mostrar los productos
-                binding.tvProductosNombre.text = "Productos - Total: \$${"%.2f".format(totalProductos)}"
-                productoAdapter = ProductoAdapter(productos) { producto ->
-                    editarProducto(producto.id) // Editar producto al hacer clic
-                }
-                binding.rvProductos.adapter = productoAdapter
-
-                // Mostrar los abonos
-                binding.tvAbonosNombre.text = "Abonos - Total: \$${"%.2f".format(totalAbonos)}"
-                abonoAdapter = AbonoAdapter(abonos) { abono ->
-                    editarAbono(abono.id) // Editar abono al hacer clic
-                }
-                binding.rvAbonos.adapter = abonoAdapter
-
-                // Mostrar la deuda restante
-                binding.tvDeuda.text = "Deuda restante: \$${"%.2f".format(restante)}"
-
-                // Detener el refresco visual una vez que los datos estén actualizados
-                binding.swipeRefreshLayout.isRefreshing = false
-            }
-        }
-    }
-
-    private fun editarProducto(productoId: Int) {
-        val intent = Intent(this, ProductoDetalleActivity::class.java)
-        intent.putExtra("PRODUCTO_ID", productoId)
-        editarProductoLauncher.launch(intent) // Iniciar ProductoDetalleActivity para edición
-    }
-
-    private fun editarAbono(abonoId: Int) {
-        val intent = Intent(this, AbonoDetalleActivity::class.java)
-        intent.putExtra("ABONO_ID", abonoId)
-        editarAbonoLauncher.launch(intent) // Iniciar EditarAbonoActivity para edición
     }
 }

@@ -10,7 +10,8 @@ data class Producto(
     @ColumnInfo(name = "producto_id") val id: Int = 0,
     @ColumnInfo(name = "nombre") val nombre: String?,
     @ColumnInfo(name = "precio") val precio: Double,
-    @ColumnInfo(name = "cliente_id") val clienteId: Int // Agregar campo clienteId para la relación
+    @ColumnInfo(name = "cliente_id") val clienteId: Int, // Agregar campo clienteId para la relación
+    @ColumnInfo(name = "foto_uri") val fotoUri: String? = null // Ruta o URI de la imagen
 )
 
 // Funciones de extensión para Producto

@@ -2,63 +2,99 @@ package com.example.pedidosshein
 
 import android.os.Bundle
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
 import com.example.pedidosshein.data.entities.Abono
-import com.example.pedidosshein.databinding.ActivityAgregarAbonoBinding
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class AgregarAbonoActivity : AppCompatActivity() {
-
-    private lateinit var binding: ActivityAgregarAbonoBinding
-    private lateinit var db: AppDatabase
-    private var clienteId: Int = -1
-
+class AgregarAbonoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityAgregarAbonoBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        val clienteId = intent.getIntExtra("CLIENTE_ID", -1)
 
-        db = AppDatabase.getInstance(this)
-
-        // Obtener el ID del cliente desde el Intent
-        clienteId = intent.getIntExtra("CLIENTE_ID", -1)
-
-        // Asignar la fecha actual al campo de fecha
-        val currentDate = getCurrentDate()
-        binding.etAbonoFecha.setText(currentDate)
-
-        // Manejar la acción de agregar abono
-        binding.btnAgregarAbono.setOnClickListener {
-            val monto = binding.etAbonoMonto.text.toString().toDoubleOrNull()
-            val fecha = binding.etAbonoFecha.text.toString()
-
-            if (monto != null && fecha.isNotEmpty()) {
-                // Crear el nuevo abono y guardarlo en la base de datos
-                val abono = Abono(clienteId = clienteId, monto = monto, fecha = fecha)
-
-                GlobalScope.launch(Dispatchers.IO) {
-                    db.abonoDao().insertAbono(abono)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@AgregarAbonoActivity, "Abono agregado", Toast.LENGTH_SHORT).show()
-                        finish() // Cerrar la actividad después de agregar el abono
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Por favor, ingrese un monto válido", Toast.LENGTH_SHORT).show()
+        setContent {
+            AgregarAbonoScreen(clienteId = clienteId) {
+                setResult(RESULT_OK)
+                finish()
             }
         }
     }
+}
 
-    private fun getCurrentDate(): String {
-        // Obtener la fecha actual en formato "yyyy-MM-dd"
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return sdf.format(Date()) // Devuelve la fecha actual como string
+@Composable
+fun AgregarAbonoScreen(clienteId: Int, onAbonoAgregado: () -> Unit) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getInstance(context) }
+    val scope = rememberCoroutineScope()
+
+    var monto by remember { mutableStateOf("") }
+    var fecha by remember { mutableStateOf(getCurrentDate()) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Agregar Abono") })
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            OutlinedTextField(
+                value = monto,
+                onValueChange = { monto = it },
+                label = { Text("Monto") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = fecha,
+                onValueChange = { fecha = it },
+                label = { Text("Fecha (yyyy-MM-dd)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(onClick = {
+                val montoDouble = monto.toDoubleOrNull()
+                if (montoDouble != null && fecha.isNotEmpty()) {
+                    val abono = Abono(clienteId = clienteId, monto = montoDouble, fecha = fecha)
+                    scope.launch(Dispatchers.IO) {
+                        db.abonoDao().insertAbono(abono)
+                        launch(Dispatchers.Main) {
+                            Toast.makeText(context, "Abono agregado", Toast.LENGTH_SHORT).show()
+                            onAbonoAgregado()
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "Por favor, ingrese un monto válido", Toast.LENGTH_SHORT).show()
+                }
+            }) {
+                Text("Agregar Abono")
+            }
+        }
     }
+}
+
+fun getCurrentDate(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return sdf.format(Date())
 }

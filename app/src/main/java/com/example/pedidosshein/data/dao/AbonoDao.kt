@@ -2,6 +2,7 @@ package com.example.pedidosshein.data.dao
 
 import androidx.room.*
 import com.example.pedidosshein.data.entities.Abono
+import com.example.pedidosshein.data.entities.Cliente
 import com.example.pedidosshein.data.entities.Producto
 
 @Dao
@@ -33,4 +34,7 @@ interface AbonoDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(abonos: List<Abono>)
+
+    @Query("SELECT * FROM Abono_table WHERE LOWER(monto) LIKE '%' || :query || '%'")
+    fun buscarClientes(query: String): List<Abono>
 }
