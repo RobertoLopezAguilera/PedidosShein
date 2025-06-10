@@ -70,7 +70,6 @@ class ProductosActivity : ComponentActivity() {
                                 "clientes" -> startActivity(Intent(this, MainActivity::class.java))
                                 "abonos" -> startActivity(Intent(this, AbonoActivity::class.java))
                                 "perfil" -> startActivity(Intent(this, PerfilActivity::class.java))
-                                "agregar_cliente" -> startActivity(Intent(this, AgregarClienteActivity::class.java))
                             }
                         },
                         onLogout = { logout() }
@@ -218,7 +217,7 @@ fun ProductosScreen(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(viewModel.productos) { producto ->
-                    val nombreCliente = viewModel.productos[producto.clienteId] ?: "Cliente desconocido"
+                    // val nombreCliente = viewModel.productos[producto.clienteId] ?: "Cliente desconocido"
                     ProductoItem(
                         producto = producto,
                         onClick = { onProductoClick(producto.clienteId) },
