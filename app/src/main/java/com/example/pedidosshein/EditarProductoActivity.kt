@@ -1,5 +1,6 @@
 package com.example.pedidosshein
 
+import android.app.DatePickerDialog
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -16,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +39,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 class EditarProductoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,11 +74,13 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
     // Estados del formulario
     var nombre by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
+    var fechaPedido by remember { mutableStateOf("") }
     var fotoUri by remember { mutableStateOf<String?>(null) }
     var clienteId by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     // Launcher para seleccionar imagen
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -102,6 +108,7 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
                 producto?.let {
                     nombre = it.nombre.toString()
                     precio = it.precio.toString()
+                    fechaPedido = it.fechaPedido ?: getCurrentDate()
                     fotoUri = it.fotoUri
                     clienteId = it.clienteId
                 } ?: run {
@@ -133,6 +140,42 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
             },
             containerColor = surface
         )
+    }
+
+    // DatePicker Dialog
+    if (showDatePicker) {
+        val calendar = Calendar.getInstance()
+        // Intentar parsear la fecha actual si existe
+        try {
+            if (fechaPedido.isNotEmpty()) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val date = sdf.parse(fechaPedido)
+                date?.let {
+                    calendar.time = it
+                }
+            }
+        } catch (e: Exception) {
+            // Si hay error al parsear, usar fecha actual
+        }
+
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        DatePickerDialog(
+            context,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val selectedDate = Calendar.getInstance().apply {
+                    set(selectedYear, selectedMonth, selectedDay)
+                }
+                fechaPedido = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    .format(selectedDate.time)
+                showDatePicker = false
+            },
+            year,
+            month,
+            day
+        ).show()
     }
 
     Surface(
@@ -320,6 +363,33 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
                                 singleLine = true,
                                 shape = RoundedCornerShape(8.dp)
                             )
+
+                            // Nuevo campo: Fecha del pedido
+                            OutlinedTextField(
+                                value = fechaPedido,
+                                onValueChange = { }, // No permitir edición manual
+                                label = { Text("Fecha del pedido") },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = primaryColor,
+                                    unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f),
+                                    focusedLabelColor = primaryColor
+                                ),
+                                readOnly = true,
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { showDatePicker = true },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = "Seleccionar fecha",
+                                            tint = primaryColor
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp)
+                            )
                         }
                     }
 
@@ -336,6 +406,10 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
                                     errorMessage = "Ingrese un precio válido"
                                     showErrorDialog = true
                                 }
+                                fechaPedido.isEmpty() -> {
+                                    errorMessage = "Seleccione una fecha válida"
+                                    showErrorDialog = true
+                                }
                                 else -> {
                                     scope.launch(Dispatchers.IO) {
                                         try {
@@ -344,7 +418,8 @@ fun EditarProductoScreen(productoId: Int, onProductoActualizado: () -> Unit) {
                                                 clienteId = clienteId,
                                                 nombre = nombre,
                                                 precio = precioDouble,
-                                                fotoUri = fotoUri
+                                                fotoUri = fotoUri,
+                                                fechaPedido = fechaPedido // Nuevo campo
                                             )
 
                                             db.productoDao().updateProducto(productoActualizado)

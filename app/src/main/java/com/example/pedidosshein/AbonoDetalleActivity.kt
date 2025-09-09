@@ -8,18 +8,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
 import com.example.pedidosshein.data.entities.Abono
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.text.NumberFormat
 
 class AbonoDetalleActivity : ComponentActivity() {
 
@@ -70,6 +77,12 @@ fun AbonoDetalleScreen(
 
     var abono by remember { mutableStateOf<Abono?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val primaryColor = colorResource(id = R.color.purple_500)
+    val primaryContainer = colorResource(id = R.color.purple_200)
+    val background = colorResource(id = R.color.background)
+    val surface = colorResource(id = R.color.surface)
+    val onSurface = colorResource(id = R.color.on_surface)
+    val errorColor = colorResource(id = R.color.red_400)
 
     // Carga inicial
     LaunchedEffect(abonoId) {
@@ -119,16 +132,67 @@ fun AbonoDetalleScreen(
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Monto: \$${"%.2f".format(abn.monto)}",
-                    style = MaterialTheme.typography.h5,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Text(
-                    text = "Fecha: ${abn.fecha}",
-                    style = MaterialTheme.typography.body1
-                )
+            ){
+                //Informacion del Abono
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = surface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Monto: \$${"%.2f".format(abn.monto)}",
+                            style = androidx.compose.material3.MaterialTheme.typography.headlineSmall,
+                            color = onSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Divider(color = primaryColor.copy(alpha = 0.2f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Fecha del abono:",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                                color = onSurface.copy(alpha = 0.7f)
+                            )
+                            abn.fecha?.let {
+                                Text(
+                                    text = it,
+                                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                                    color = primaryColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Divider(color = primaryColor.copy(alpha = 0.2f))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Fecha del Pedido:",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                                color = onSurface.copy(alpha = 0.7f)
+                            )
+                            abn.fechaProductoPedido?.let {
+                                Text(
+                                    text = it,
+                                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                                    color = primaryColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                }
             }
         } ?: Box(
             modifier = Modifier

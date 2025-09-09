@@ -3,10 +3,12 @@ package com.example.pedidosshein.data.dao
 import androidx.room.*
 import com.example.pedidosshein.data.entities.Cliente
 import com.example.pedidosshein.data.entities.Producto
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Dao
 interface ProductoDao {
-
     @Query("SELECT * FROM Producto_table")
     fun getAllProductos(): List<Producto>
 
@@ -37,4 +39,6 @@ interface ProductoDao {
     @Query("SELECT * FROM Producto_table WHERE LOWER(nombre) LIKE '%' || :query || '%'")
     fun buscarProductos(query: String): List<Producto>
 
+    @Query("SELECT * FROM Producto_table WHERE cliente_id = :clienteId AND fecha_pedido = :fecha")
+    fun getProductosByClienteIdAndFecha(clienteId: Int, fecha: String): List<Producto>
 }

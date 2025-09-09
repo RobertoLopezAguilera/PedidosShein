@@ -1,5 +1,6 @@
 package com.example.pedidosshein
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -24,7 +25,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import android.content.Context
 import android.net.Uri
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class AgregarProductoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +56,16 @@ fun AgregarProductoScreen(clienteId: Int, onProductoAgregado: () -> Unit) {
     var nombre by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
     var fotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Obtener la fecha actual por defecto
+    val calendar = remember { Calendar.getInstance() }
+    var fechaPedido by remember {
+        mutableStateOf(
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+        )
+    }
+
+    var showDatePicker by remember { mutableStateOf(false) }
 
     // Launcher para abrir galería
     val pickImageLauncher = rememberLauncherForActivityResult(
@@ -85,6 +102,20 @@ fun AgregarProductoScreen(clienteId: Int, onProductoAgregado: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Campo para fecha del pedido
+            OutlinedTextField(
+                value = fechaPedido,
+                onValueChange = { }, // No permitir edición manual
+                label = { Text("Fecha del pedido") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha")
+                    }
+                }
+            )
+
             // Mostrar imagen seleccionada si existe
             fotoUri?.let {
                 Image(
@@ -113,7 +144,8 @@ fun AgregarProductoScreen(clienteId: Int, onProductoAgregado: () -> Unit) {
                             clienteId = clienteId,
                             nombre = nombre,
                             precio = precioDouble,
-                            fotoUri = rutaLocal // ahora guarda ruta local
+                            fotoUri = rutaLocal,
+                            fechaPedido = fechaPedido // Nuevo campo agregado
                         )
 
                         scope.launch(Dispatchers.IO) {
@@ -131,6 +163,28 @@ fun AgregarProductoScreen(clienteId: Int, onProductoAgregado: () -> Unit) {
                 Text("Agregar Producto")
             }
         }
+    }
+
+    // DatePicker Dialog
+    if (showDatePicker) {
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        DatePickerDialog(
+            context,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val selectedDate = Calendar.getInstance().apply {
+                    set(selectedYear, selectedMonth, selectedDay)
+                }
+                fechaPedido = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    .format(selectedDate.time)
+                showDatePicker = false
+            },
+            year,
+            month,
+            day
+        ).show()
     }
 }
 

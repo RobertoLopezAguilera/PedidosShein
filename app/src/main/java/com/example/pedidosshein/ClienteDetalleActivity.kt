@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.registerForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.compose.animation.AnimatedVisibility
@@ -13,8 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +22,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
 import com.example.pedidosshein.data.entities.Abono
+import com.example.pedidosshein.data.entities.PedidoGrupo
 import com.example.pedidosshein.data.entities.Producto
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
@@ -90,6 +89,7 @@ class ClienteDetalleActivity : ComponentActivity() {
         var refreshing by remember { mutableStateOf(false) }
         var expandirProductos by remember { mutableStateOf(false) }
         var expandirAbonos by remember { mutableStateOf(false) }
+        var vistaPorPedidos by remember { mutableStateOf(false) } // Nuevo estado para el modo de vista
 
         // Paleta de colores
         val primaryColor = colorResource(id = R.color.purple_500)
@@ -128,6 +128,34 @@ class ClienteDetalleActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Función para agrupar por pedidos
+        fun agruparPorPedidos(): List<PedidoGrupo> {
+            // Obtener todas las fechas únicas de productos
+            val fechasProductos = productos.mapNotNull { it.fechaPedido }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .sorted()
+
+            return fechasProductos.map { fecha ->
+                val productosPedido = productos.filter { it.fechaPedido == fecha }
+                val abonosPedido = abonos.filter { it.fechaProductoPedido == fecha }
+
+                val totalProductosPedido = productosPedido.sumOf { it.precio }
+                val totalAbonosPedido = abonosPedido.sumOf { it.monto }
+                val restante = totalProductosPedido - totalAbonosPedido
+
+                PedidoGrupo(
+                    fecha = fecha,
+                    productos = productosPedido,
+                    abonos = abonosPedido,
+                    totalProductos = totalProductosPedido,
+                    totalAbonos = totalAbonosPedido,
+                    restante = restante
+                )
+            }
+        }
+
 
         // Efectos para cargar datos
         LaunchedEffect(Unit) { cargarDatos() }
@@ -172,6 +200,17 @@ class ClienteDetalleActivity : ComponentActivity() {
                                 actionIconContentColor = Color.White
                             ),
                             actions = {
+                                // Selector de vista
+                                IconButton(
+                                    onClick = { vistaPorPedidos = !vistaPorPedidos }
+                                ) {
+                                    Icon(
+                                        imageVector = if (vistaPorPedidos) Icons.Default.ViewList else Icons.Default.DateRange,
+                                        contentDescription = if (vistaPorPedidos) "Vista normal" else "Vista por pedidos",
+                                        tint = Color.White
+                                    )
+                                }
+
                                 IconButton(
                                     onClick = {
                                         startActivity(
@@ -261,17 +300,37 @@ class ClienteDetalleActivity : ComponentActivity() {
                                     appendLine("Cliente: ${cliente?.nombre}")
                                     appendLine("Teléfono: ${cliente?.telefono}")
                                     appendLine()
-                                    appendLine("Productos (Total: ${formatCurrency(totalProductos)}):")
-                                    productos.forEach { producto ->
-                                        appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
+
+                                    if (vistaPorPedidos) {
+                                        val pedidos = agruparPorPedidos()
+                                        pedidos.forEach { pedido ->
+                                            appendLine("PEDIDO DEL ${pedido.fecha}")
+                                            appendLine("Productos (Total: ${formatCurrency(pedido.totalProductos)}):")
+                                            pedido.productos.forEach { producto ->
+                                                appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
+                                            }
+                                            if (pedido.abonos.isNotEmpty()) {
+                                                appendLine("Abonos (Total: ${formatCurrency(pedido.totalAbonos)}):")
+                                                pedido.abonos.forEach { abono ->
+                                                    appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
+                                                }
+                                            }
+                                            appendLine("Restante: ${formatCurrency(pedido.restante)}")
+                                            appendLine("---")
+                                        }
+                                    } else {
+                                        appendLine("Productos (Total: ${formatCurrency(totalProductos)}):")
+                                        productos.forEach { producto ->
+                                            appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
+                                        }
+                                        appendLine()
+                                        appendLine("Abonos (Total: ${formatCurrency(totalAbonos)}):")
+                                        abonos.forEach { abono ->
+                                            appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
+                                        }
+                                        appendLine()
+                                        appendLine("Deuda restante: ${formatCurrency(deuda)}")
                                     }
-                                    appendLine()
-                                    appendLine("Abonos (Total: ${formatCurrency(totalAbonos)}):")
-                                    abonos.forEach { abono ->
-                                        appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
-                                    }
-                                    appendLine()
-                                    appendLine("Deuda restante: ${formatCurrency(deuda)}")
                                 }
 
                                 withContext(Dispatchers.Main) {
@@ -322,13 +381,18 @@ class ClienteDetalleActivity : ComponentActivity() {
                                         Text(
                                             text = clienteNombre,
                                             style = typography.titleLarge,
-                                            color = onSurface
+                                            color = onSurface,
+                                            modifier = Modifier.weight(1f),
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
+
                                         Text(
                                             text = formatCurrency(deuda),
                                             style = typography.titleLarge,
                                             color = deudaColor,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
                                         )
                                     }
 
@@ -418,76 +482,107 @@ class ClienteDetalleActivity : ComponentActivity() {
                             }
                         }
 
-                        // Sección de productos
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { expandirProductos = !expandirProductos }
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "Productos (${productos.size})",
-                                            style = typography.titleMedium,
-                                            color = onSurface
-                                        )
-                                        Icon(
-                                            imageVector = if (expandirProductos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                            contentDescription = if (expandirProductos) "Contraer" else "Expandir",
-                                            tint = primaryColor
-                                        )
-                                    }
+                        if (vistaPorPedidos) {
+                            // VISTA POR PEDIDOS
+                            val pedidos = agruparPorPedidos()
 
-                                    AnimatedVisibility(visible = expandirProductos) {
-                                        Column {
-                                            productos.forEach { producto ->
-                                                Card(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                        .clickable {
-                                                            editarProductoLauncher.launch(
-                                                                Intent(
-                                                                    context,
-                                                                    ProductoDetalleActivity::class.java
-                                                                ).apply {
-                                                                    putExtra("PRODUCTO_ID", producto.id)
-                                                                }
-                                                            )
-                                                        },
-                                                    colors = CardDefaults.cardColors(
-                                                        containerColor = surface.copy(alpha = 0.8f)
-                                                    )
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.SpaceBetween
+                            items(pedidos) { pedido ->
+                                CardPedido(
+                                    pedido = pedido,
+                                    onEditProducto = { productoId ->
+                                        editarProductoLauncher.launch(
+                                            Intent(context, ProductoDetalleActivity::class.java).apply {
+                                                putExtra("PRODUCTO_ID", productoId)
+                                            }
+                                        )
+                                    },
+                                    onEditAbono = { abonoId ->
+                                        editarAbonoLauncher.launch(
+                                            Intent(context, AbonoDetalleActivity::class.java).apply {
+                                                putExtra("ABONO_ID", abonoId)
+                                            }
+                                        )
+                                    },
+                                    primaryColor = primaryColor,
+                                    successColor = successColor,
+                                    errorColor = errorColor,
+                                    onSurface = onSurface,
+                                    surface = surface
+                                )
+                            }
+                        } else {
+                            // VISTA TRADICIONAL
+                            item {
+                                // Sección de productos
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = surface),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { expandirProductos = !expandirProductos }
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Productos (${productos.size})",
+                                                style = typography.titleMedium,
+                                                color = onSurface
+                                            )
+                                            Icon(
+                                                imageVector = if (expandirProductos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                contentDescription = if (expandirProductos) "Contraer" else "Expandir",
+                                                tint = primaryColor
+                                            )
+                                        }
+
+                                        AnimatedVisibility(visible = expandirProductos) {
+                                            Column {
+                                                productos.forEach { producto ->
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                            .clickable {
+                                                                editarProductoLauncher.launch(
+                                                                    Intent(
+                                                                        context,
+                                                                        ProductoDetalleActivity::class.java
+                                                                    ).apply {
+                                                                        putExtra("PRODUCTO_ID", producto.id)
+                                                                    }
+                                                                )
+                                                            },
+                                                        colors = CardDefaults.cardColors(
+                                                            containerColor = surface.copy(alpha = 0.8f)
+                                                        )
                                                     ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
+                                                        Row(
+                                                            modifier = Modifier.padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = producto.nombre ?: "Sin nombre",
+                                                                    style = typography.bodyLarge,
+                                                                    color = onSurface,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                            }
+
                                                             Text(
-                                                                text = producto.nombre ?: "Sin nombre",
+                                                                text = formatCurrency(producto.precio),
                                                                 style = typography.bodyLarge,
-                                                                color = onSurface,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis
+                                                                color = primaryColor,
+                                                                fontWeight = FontWeight.Bold
                                                             )
                                                         }
-
-                                                        Text(
-                                                            text = formatCurrency(producto.precio),
-                                                            style = typography.bodyLarge,
-                                                            color = primaryColor,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
                                                     }
                                                 }
                                             }
@@ -495,76 +590,76 @@ class ClienteDetalleActivity : ComponentActivity() {
                                     }
                                 }
                             }
-                        }
 
-                        // Sección de abonos
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                Column {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { expandirAbonos = !expandirAbonos }
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = "Abonos (${abonos.size})",
-                                            style = typography.titleMedium,
-                                            color = onSurface
-                                        )
-                                        Icon(
-                                            imageVector = if (expandirAbonos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                            contentDescription = if (expandirAbonos) "Contraer" else "Expandir",
-                                            tint = primaryColor
-                                        )
-                                    }
+                            item {
+                                // Sección de abonos
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = surface),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { expandirAbonos = !expandirAbonos }
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Abonos (${abonos.size})",
+                                                style = typography.titleMedium,
+                                                color = onSurface
+                                            )
+                                            Icon(
+                                                imageVector = if (expandirAbonos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                contentDescription = if (expandirAbonos) "Contraer" else "Expandir",
+                                                tint = primaryColor
+                                            )
+                                        }
 
-                                    AnimatedVisibility(visible = expandirAbonos) {
-                                        Column {
-                                            abonos.forEach { abono ->
-                                                Card(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                        .clickable {
-                                                            editarAbonoLauncher.launch(
-                                                                Intent(
-                                                                    context,
-                                                                    AbonoDetalleActivity::class.java
-                                                                ).apply {
-                                                                    putExtra("ABONO_ID", abono.id)
-                                                                }
-                                                            )
-                                                        },
-                                                    colors = CardDefaults.cardColors(
-                                                        containerColor = surface.copy(alpha = 0.8f)
-                                                    )
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        AnimatedVisibility(visible = expandirAbonos) {
+                                            Column {
+                                                abonos.forEach { abono ->
+                                                    Card(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                            .clickable {
+                                                                editarAbonoLauncher.launch(
+                                                                    Intent(
+                                                                        context,
+                                                                        AbonoDetalleActivity::class.java
+                                                                    ).apply {
+                                                                        putExtra("ABONO_ID", abono.id)
+                                                                    }
+                                                                )
+                                                            },
+                                                        colors = CardDefaults.cardColors(
+                                                            containerColor = surface.copy(alpha = 0.8f)
+                                                        )
                                                     ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
+                                                        Row(
+                                                            modifier = Modifier.padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Column(modifier = Modifier.weight(1f)) {
+                                                                Text(
+                                                                    text = "Abono del ${abono.fecha}",
+                                                                    style = typography.bodyLarge,
+                                                                    color = onSurface
+                                                                )
+                                                            }
+
                                                             Text(
-                                                                text = "Abono del ${abono.fecha}",
+                                                                text = formatCurrency(abono.monto),
                                                                 style = typography.bodyLarge,
-                                                                color = onSurface
+                                                                color = successColor,
+                                                                fontWeight = FontWeight.Bold
                                                             )
                                                         }
-
-                                                        Text(
-                                                            text = formatCurrency(abono.monto),
-                                                            style = typography.bodyLarge,
-                                                            color = successColor,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
                                                     }
                                                 }
                                             }
@@ -581,5 +676,174 @@ class ClienteDetalleActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    @Composable
+    fun CardPedido(
+        pedido: PedidoGrupo,
+        onEditProducto: (Int) -> Unit,
+        onEditAbono: (Int) -> Unit,
+        primaryColor: Color,
+        successColor: Color,
+        errorColor: Color,
+        onSurface: Color,
+        surface: Color
+    ) {
+        var expandirProductos by remember { mutableStateOf(false) }
+        var expandirAbonos by remember { mutableStateOf(false) }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Header del pedido
+                Text(
+                    text = "Pedido del ${pedido.fecha}",
+                    style = typography.titleMedium,
+                    color = primaryColor,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Productos del pedido
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandirProductos = !expandirProductos }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Productos: ${formatCurrency(pedido.totalProductos)}",
+                        style = typography.bodyMedium,
+                        color = onSurface
+                    )
+                    Icon(
+                        imageVector = if (expandirProductos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "Productos",
+                        tint = primaryColor
+                    )
+                }
+
+                AnimatedVisibility(visible = expandirProductos) {
+                    Column {
+                        pedido.productos.forEach { producto ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable { onEditProducto(producto.id) },
+                                colors = CardDefaults.cardColors(containerColor = surface.copy(alpha = 0.8f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = producto.nombre ?: "Sin nombre",
+                                        style = typography.bodyMedium,
+                                        color = onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = formatCurrency(producto.precio),
+                                        style = typography.bodyMedium,
+                                        color = primaryColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Abonos del pedido
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandirAbonos = !expandirAbonos }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Abonos: ${formatCurrency(pedido.totalAbonos)}",
+                        style = typography.bodyMedium,
+                        color = onSurface
+                    )
+                    Icon(
+                        imageVector = if (expandirAbonos) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = "Abonos",
+                        tint = successColor
+                    )
+                }
+
+                AnimatedVisibility(visible = expandirAbonos) {
+                    Column {
+                        pedido.abonos.forEach { abono ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .clickable { onEditAbono(abono.id) },
+                                colors = CardDefaults.cardColors(containerColor = surface.copy(alpha = 0.8f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Abono del ${abono.fecha}",
+                                        style = typography.bodyMedium,
+                                        color = onSurface
+                                    )
+                                    Text(
+                                        text = formatCurrency(abono.monto),
+                                        style = typography.bodyMedium,
+                                        color = successColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Resumen del pedido
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Restante:",
+                        style = typography.bodyLarge,
+                        color = onSurface,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = formatCurrency(pedido.restante),
+                        style = typography.bodyLarge,
+                        color = if (pedido.restante > 0) errorColor else successColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+
+    // Función para formatear moneda (local)
+    fun formatCurrency(amount: Double): String {
+        return NumberFormat.getCurrencyInstance().format(amount)
     }
 }

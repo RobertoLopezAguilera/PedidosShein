@@ -1,16 +1,22 @@
 package com.example.pedidosshein
 
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -21,6 +27,8 @@ import com.example.pedidosshein.data.entities.Abono
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 class EditarAbonoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,17 +58,43 @@ fun EditarAbonoScreen(abonoId: Int, onAbonoActualizado: () -> Unit) {
 
     var monto by remember { mutableStateOf("") }
     var fecha by remember { mutableStateOf("") }
+    var fechaProductoPedido by remember { mutableStateOf("") }
     var clienteId by remember { mutableStateOf(0) }
     var cargando by remember { mutableStateOf(true) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showDatePickerProducto by remember { mutableStateOf(false) }
 
-    // Cargar abono al iniciar
+    // Estados para las fechas únicas de productos del cliente
+    var fechasUnicas by remember { mutableStateOf<List<String>>(emptyList()) }
+    var expanded by remember { mutableStateOf(false) }
+
+    // Cargar abono y fechas únicas al iniciar
     LaunchedEffect(abonoId) {
         scope.launch(Dispatchers.IO) {
             val abono = db.abonoDao().getAbonoById(abonoId)
             if (abono != null) {
                 monto = abono.monto.toString()
                 fecha = abono.fecha.toString()
+                fechaProductoPedido = abono.fechaProductoPedido ?: ""
                 clienteId = abono.clienteId
+
+                // Cargar fechas únicas de productos del cliente
+                val productos = db.productoDao().getProductosByClienteId(clienteId)
+                val fechas = productos
+                    .mapNotNull { it.fechaPedido }
+                    .filter { it.isNotEmpty() }
+                    .distinct()
+                    .sorted()
+
+                withContext(Dispatchers.Main) {
+                    fechasUnicas = fechas
+                    // Si no hay fechaProductoPedido, usar la primera fecha disponible o fecha actual
+                    if (fechaProductoPedido.isEmpty() && fechas.isNotEmpty()) {
+                        fechaProductoPedido = fechas.first()
+                    } else if (fechaProductoPedido.isEmpty()) {
+                        fechaProductoPedido = getCurrentDate()
+                    }
+                }
             } else {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Error: Abono no encontrado", Toast.LENGTH_SHORT).show()
@@ -133,19 +167,108 @@ fun EditarAbonoScreen(abonoId: Int, onAbonoActualizado: () -> Unit) {
                                 }
                             )
 
+                            // Selector de fecha del abono
                             OutlinedTextField(
                                 value = fecha,
                                 onValueChange = { fecha = it },
-                                label = { Text("Fecha (yyyy-MM-dd)") },
+                                label = { Text("Fecha del abono (yyyy-MM-dd)") },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = primaryColor,
                                     unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
                                 ),
-                                placeholder = {
-                                    Text(text = "Ej: 2023-05-15")
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { showDatePicker = true },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = "Seleccionar fecha del abono",
+                                            tint = primaryColor
+                                        )
+                                    }
                                 }
                             )
+
+                            // Selector de fecha del pedido (producto)
+                            if (fechasUnicas.isNotEmpty()) {
+                                Text(
+                                    "Fecha del pedido asociado:",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+
+                                Box(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedTextField(
+                                        value = fechaProductoPedido,
+                                        onValueChange = { },
+                                        label = { Text("Fecha del pedido") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                                            focusedBorderColor = primaryColor,
+                                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                        ),
+                                        readOnly = true,
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Default.ArrowDropDown,
+                                                contentDescription = "Seleccionar fecha del pedido",
+                                                tint = primaryColor
+                                            )
+                                        }
+                                    )
+
+                                    // Overlay clickable para abrir el dropdown
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clickable{ expanded = true }
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    fechasUnicas.forEach { fecha ->
+                                        DropdownMenuItem(
+                                            onClick = {
+                                                fechaProductoPedido = fecha
+                                                expanded = false
+                                            },
+                                            text = {
+                                                Text(text = fecha)
+                                            }
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Si no hay fechas de productos, usar selector de fecha normal
+                                OutlinedTextField(
+                                    value = fechaProductoPedido,
+                                    onValueChange = { },
+                                    label = { Text("Fecha del pedido asociado") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                                        focusedBorderColor = primaryColor,
+                                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                    ),
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { showDatePickerProducto = true },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.CalendarToday,
+                                                contentDescription = "Seleccionar fecha del pedido",
+                                                tint = primaryColor
+                                            )
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -163,7 +286,14 @@ fun EditarAbonoScreen(abonoId: Int, onAbonoActualizado: () -> Unit) {
                                 fecha.isEmpty() -> {
                                     Toast.makeText(
                                         context,
-                                        "La fecha no puede estar vacía",
+                                        "La fecha del abono no puede estar vacía",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                fechaProductoPedido.isEmpty() -> {
+                                    Toast.makeText(
+                                        context,
+                                        "La fecha del pedido no puede estar vacía",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -174,7 +304,8 @@ fun EditarAbonoScreen(abonoId: Int, onAbonoActualizado: () -> Unit) {
                                                 id = abonoId,
                                                 clienteId = clienteId,
                                                 monto = nuevoMonto,
-                                                fecha = fecha
+                                                fecha = fecha,
+                                                fechaProductoPedido = fechaProductoPedido // Nuevo campo
                                             )
                                             db.abonoDao().updateAbono(abono)
                                             withContext(Dispatchers.Main) {
@@ -212,5 +343,75 @@ fun EditarAbonoScreen(abonoId: Int, onAbonoActualizado: () -> Unit) {
                 }
             }
         }
+    }
+
+    // DatePicker Dialog para fecha del abono
+    if (showDatePicker) {
+        val calendar = Calendar.getInstance()
+        try {
+            if (fecha.isNotEmpty()) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val date = sdf.parse(fecha)
+                date?.let {
+                    calendar.time = it
+                }
+            }
+        } catch (e: Exception) {
+            // Si hay error al parsear, usar fecha actual
+        }
+
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        DatePickerDialog(
+            context,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val selectedDate = Calendar.getInstance().apply {
+                    set(selectedYear, selectedMonth, selectedDay)
+                }
+                fecha = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    .format(selectedDate.time)
+                showDatePicker = false
+            },
+            year,
+            month,
+            day
+        ).show()
+    }
+
+    // DatePicker Dialog para fecha del pedido (cuando no hay fechas de productos)
+    if (showDatePickerProducto) {
+        val calendar = Calendar.getInstance()
+        try {
+            if (fechaProductoPedido.isNotEmpty()) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val date = sdf.parse(fechaProductoPedido)
+                date?.let {
+                    calendar.time = it
+                }
+            }
+        } catch (e: Exception) {
+            // Si hay error al parsear, usar fecha actual
+        }
+
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        DatePickerDialog(
+            context,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val selectedDate = Calendar.getInstance().apply {
+                    set(selectedYear, selectedMonth, selectedDay)
+                }
+                fechaProductoPedido = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    .format(selectedDate.time)
+                showDatePickerProducto = false
+            },
+            year,
+            month,
+            day
+        ).show()
     }
 }

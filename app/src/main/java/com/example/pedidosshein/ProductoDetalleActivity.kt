@@ -174,9 +174,10 @@ fun ProductoDetalleScreen(
                 Column(
                     modifier = Modifier
                         .padding(paddingValues)
-                        .fillMaxSize()
-                        .background(background),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(16.dp)
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.Top,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Imagen del producto
                     if (!prod.fotoUri.isNullOrBlank()) {
@@ -261,6 +262,24 @@ fun ProductoDetalleScreen(
                                     color = primaryColor,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Fecha:",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = onSurface.copy(alpha = 0.7f)
+                                )
+                                prod.fechaPedido?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = primaryColor,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
