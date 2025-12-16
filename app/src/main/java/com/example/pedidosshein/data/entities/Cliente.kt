@@ -12,19 +12,27 @@ data class Cliente(
     @ColumnInfo(name = "telefono") val telefono: String?
 )
 
-// Funciones de extensión para convertir entre Cliente y Map<String, Any>
-fun Cliente.toMap(): Map<String, Any?> {
-    return mapOf(
-        "id" to id,
-        "nombre" to nombre,
-        "telefono" to telefono
+fun Cliente.toMap(): Map<String, Any> {
+    return hashMapOf(
+        "id" to id.toLong(), // Convertir a Long
+        "nombre" to (nombre ?: ""),
+        "telefono" to (telefono ?: "")
     )
 }
 
-fun Map<String, Any?>.toCliente(): Cliente {
+fun Map<String, Any>.toCliente(): Cliente {
     return Cliente(
-        id = (this["id"] as Long?)?.toInt() ?: 0,
-        nombre = this["nombre"] as String?,
-        telefono = this["telefono"] as String?
+        id = try {
+            when (val idValue = this["id"]) {
+                is Long -> idValue.toInt()
+                is Int -> idValue
+                is Double -> idValue.toInt()
+                else -> 0
+            }
+        } catch (e: Exception) {
+            0
+        },
+        nombre = (this["nombre"] as? String).takeIf { !it.isNullOrEmpty() },
+        telefono = (this["telefono"] as? String).takeIf { !it.isNullOrEmpty() }
     )
 }

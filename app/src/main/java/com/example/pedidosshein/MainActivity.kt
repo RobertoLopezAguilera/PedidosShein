@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.example.pedidosshein.data.database.AppDatabase
 import com.example.pedidosshein.data.entities.Cliente
 import com.example.pedidosshein.ui.theme.PedidosSheinTheme
+import com.example.pedidosshein.utils.BackupManager
 import com.google.android.gms.ads.MobileAds
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,9 @@ class MainActivity : ComponentActivity() {
             finish()
             return
         }
+
+        // Inicializar respaldo automático
+        BackupManager.schedulePeriodicBackup(this)
 
         MobileAds.initialize(this)
 

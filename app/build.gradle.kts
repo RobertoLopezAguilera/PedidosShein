@@ -99,4 +99,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.5.0") // Ajusta a la versión Compose que usas
     implementation("com.google.accompanist:accompanist-swiperefresh:0.30.1")
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    //worker
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

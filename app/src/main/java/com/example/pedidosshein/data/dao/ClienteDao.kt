@@ -19,6 +19,9 @@ interface ClienteDao {
     @Delete
     fun deleteCliente(vararg cliente: Cliente)
 
+    @Query("DELETE FROM Cliente_table")
+    fun deleteAll()
+
     @Query("DELETE FROM Cliente_table WHERE cliente_id = :id")
     fun deleteClienteById(id: Int): Int
 

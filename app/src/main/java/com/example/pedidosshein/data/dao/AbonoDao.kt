@@ -23,6 +23,9 @@ interface AbonoDao {
     @Delete
     fun deleteAbono(vararg abono: Abono)
 
+    @Query("DELETE FROM abono_table")
+    fun deleteAll()
+
     @Query("DELETE FROM abono_table WHERE abono_id = :id")
     fun deleteAbonoById(id: Int): Int
 

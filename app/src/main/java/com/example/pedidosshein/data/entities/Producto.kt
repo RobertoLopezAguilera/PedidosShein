@@ -10,31 +10,48 @@ data class Producto(
     @ColumnInfo(name = "producto_id") val id: Int = 0,
     @ColumnInfo(name = "nombre") val nombre: String?,
     @ColumnInfo(name = "precio") val precio: Double,
-    @ColumnInfo(name = "cliente_id") val clienteId: Int, // Agregar campo clienteId para la relación
-    @ColumnInfo(name = "foto_uri") val fotoUri: String? = null, // Ruta o URI de la imagen
-    @ColumnInfo(name = "fecha_pedido") val fechaPedido: String? = null // Nuevo campo
+    @ColumnInfo(name = "cliente_id") val clienteId: Int,
+    @ColumnInfo(name = "foto_uri") val fotoUri: String? = null,
+    @ColumnInfo(name = "fecha_pedido") val fechaPedido: String? = null
 )
 
-// Funciones de extensión para Producto
-fun Producto.toMap(): Map<String, Any?> {
-    return mapOf(
-        "id" to id,
-        "nombre" to nombre,
+fun Producto.toMap(): Map<String, Any> {
+    return hashMapOf(
+        "id" to id.toLong(), // Convertir a Long
+        "nombre" to (nombre ?: ""),
         "precio" to precio,
-        "clienteId" to clienteId,
-        "fotoUri" to fotoUri,
-        "fechaPedido" to fechaPedido // Nuevo campo
+        "clienteId" to clienteId.toLong(), // Convertir a Long
+        "fotoUri" to (fotoUri ?: ""),
+        "fechaPedido" to (fechaPedido ?: "")
     )
 }
 
-fun Map<String, Any?>.toProducto(): Producto {
+fun Map<String, Any>.toProducto(): Producto {
     return Producto(
-        id = (this["id"] as Long?)?.toInt() ?: 0,
-        nombre = this["nombre"] as? String,
-        precio = this["precio"] as? Double ?: 0.0,
-        clienteId = (this["clienteId"] as Long?)?.toInt() ?: 0,
-        fotoUri = this["fotoUri"] as? String,
-        fechaPedido = this["fechaPedido"] as? String // Nuevo campo
+        id = try {
+            when (val idValue = this["id"]) {
+                is Long -> idValue.toInt()
+                is Int -> idValue
+                is Double -> idValue.toInt()
+                else -> 0
+            }
+        } catch (e: Exception) {
+            0
+        },
+        nombre = (this["nombre"] as? String).takeIf { !it.isNullOrEmpty() },
+        precio = (this["precio"] as? Double) ?: (this["precio"] as? Long)?.toDouble() ?: 0.0,
+        clienteId = try {
+            when (val clienteIdValue = this["clienteId"]) {
+                is Long -> clienteIdValue.toInt()
+                is Int -> clienteIdValue
+                is Double -> clienteIdValue.toInt()
+                else -> 0
+            }
+        } catch (e: Exception) {
+            0
+        },
+        fotoUri = (this["fotoUri"] as? String).takeIf { !it.isNullOrEmpty() },
+        fechaPedido = (this["fechaPedido"] as? String).takeIf { !it.isNullOrEmpty() }
     )
 }
 

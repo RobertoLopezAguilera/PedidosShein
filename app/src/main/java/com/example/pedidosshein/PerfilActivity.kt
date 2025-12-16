@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,11 +28,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.pedidosshein.data.database.AppDatabase
 import com.example.pedidosshein.data.entities.toAbono
 import com.example.pedidosshein.data.entities.toCliente
 import com.example.pedidosshein.data.entities.toMap
 import com.example.pedidosshein.data.entities.toProducto
+import com.example.pedidosshein.utils.BackupManager
 import com.example.pedidosshein.utils.ExcelExporter
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -39,6 +43,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class PerfilActivity : AppCompatActivity() {
     private lateinit var db: AppDatabase
@@ -90,6 +97,22 @@ class PerfilActivity : AppCompatActivity() {
         var showBackupConfirmation by remember { mutableStateOf(false) }
         var showRestoreConfirmation by remember { mutableStateOf(false) }
         var showExportConfirmation by remember { mutableStateOf(false) }
+
+        // Nuevas variables para el respaldo automático
+        val context = LocalContext.current
+        var isAutoBackupEnabled by remember { mutableStateOf(BackupManager.isBackupEnabled(context)) }
+        var lastBackupTime by remember { mutableStateOf(BackupManager.getLastBackupTime(context)) }
+        var showAutoBackupConfirmation by remember { mutableStateOf(false) }
+
+        // Formatear hora del último respaldo
+        val formattedLastBackup = remember(lastBackupTime) {
+            if (lastBackupTime > 0) {
+                val date = Date(lastBackupTime)
+                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(date)
+            } else {
+                "Nunca"
+            }
+        }
 
         // Diálogos de confirmación
         if (showBackupConfirmation) {
@@ -351,6 +374,105 @@ class PerfilActivity : AppCompatActivity() {
                     }
                 }
 
+                // Respaldo automatico
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = surface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Respaldo Automático",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = onSurface
+                            )
+
+                            Switch(
+                                checked = isAutoBackupEnabled,
+                                onCheckedChange = {
+                                    showAutoBackupConfirmation = true
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = primaryColor,
+                                    checkedTrackColor = primaryColor.copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+
+                        if (isAutoBackupEnabled) {
+                            Text(
+                                text = "Último respaldo: $formattedLastBackup",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = onSurface.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = "Próximo respaldo automático en ~24 horas",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = successColor
+                            )
+                        } else {
+                            Text(
+                                text = "El respaldo automático está desactivado",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
+
+                // Diálogo de confirmación para respaldo automático
+                if (showAutoBackupConfirmation) {
+                    AlertDialog(
+                        onDismissRequest = { showAutoBackupConfirmation = false },
+                        title = {
+                            Text(if (isAutoBackupEnabled) "Desactivar Respaldo" else "Activar Respaldo")
+                        },
+                        text = {
+                            Text(
+                                if (isAutoBackupEnabled)
+                                    "¿Estás seguro de desactivar el respaldo automático? Tus datos no se respaldarán automáticamente."
+                                else
+                                    "¿Activar respaldo automático cada 24 horas? Se requerirá conexión a internet."
+                            )
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (isAutoBackupEnabled) {
+                                        BackupManager.cancelPeriodicBackup(context)
+                                    } else {
+                                        BackupManager.schedulePeriodicBackup(context)
+                                        // Forzar un respaldo inmediato al activar
+                                        BackupManager.triggerImmediateBackup(context)
+                                    }
+                                    isAutoBackupEnabled = !isAutoBackupEnabled
+                                    lastBackupTime = BackupManager.getLastBackupTime(context)
+                                    showAutoBackupConfirmation = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor)
+                            ) {
+                                Text("Confirmar")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { showAutoBackupConfirmation = false }
+                            ) {
+                                Text("Cancelar")
+                            }
+                        }
+                    )
+                }
+
                 // Sección de acciones (sin título redundante)
                 FilledTonalButton(
                     onClick = { showBackupConfirmation = true },
@@ -417,34 +539,93 @@ class PerfilActivity : AppCompatActivity() {
     private fun respaldarBaseDeDatos() {
         val dbFirebase = FirebaseFirestore.getInstance()
         val currentUser = FirebaseAuth.getInstance().currentUser
-        val userId = currentUser?.uid ?: return
+
+        if (currentUser == null) {
+            Toast.makeText(this@PerfilActivity,
+                "❌ No hay usuario autenticado. Inicia sesión primero.",
+                Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val userId = currentUser.uid
+        val progressDialog = android.app.ProgressDialog(this).apply {
+            setTitle("Respaldo en progreso")
+            setMessage("Subiendo datos a la nube...")
+            setCancelable(false)
+            show()
+        }
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                // Obtener datos
                 val clientes = db.clienteDao().getAllClientes()
-                clientes.forEach { cliente ->
-                    dbFirebase.collection("Usuarios").document(userId)
-                        .collection("Clientes").document(cliente.id.toString()).set(cliente.toMap())
-                }
-
                 val abonos = db.abonoDao().getAllAbonos()
-                abonos.forEach { abono ->
-                    dbFirebase.collection("Usuarios").document(userId)
-                        .collection("Abonos").document(abono.id.toString()).set(abono.toMap())
+                val productos = db.productoDao().getAllProductos()
+
+                Log.d("BackupDebug", "Datos a subir: C=${clientes.size}, A=${abonos.size}, P=${productos.size}")
+
+                // Subir clientes en batch para mejor rendimiento
+                val batch = dbFirebase.batch()
+
+                clientes.forEach { cliente ->
+                    val clienteRef = dbFirebase.collection("Usuarios").document(userId)
+                        .collection("Clientes").document(cliente.id.toString())
+                    batch.set(clienteRef, cliente.toMap())
                 }
 
-                val productos = db.productoDao().getAllProductos()
-                productos.forEach { producto ->
-                    dbFirebase.collection("Usuarios").document(userId)
-                        .collection("Productos").document(producto.id.toString()).set(producto.toMap())
+                abonos.forEach { abono ->
+                    val abonoRef = dbFirebase.collection("Usuarios").document(userId)
+                        .collection("Abonos").document(abono.id.toString())
+                    batch.set(abonoRef, abono.toMap())
                 }
+
+                productos.forEach { producto ->
+                    val productoRef = dbFirebase.collection("Usuarios").document(userId)
+                        .collection("Productos").document(producto.id.toString())
+                    batch.set(productoRef, producto.toMap())
+                }
+
+                // Ejecutar batch
+                batch.commit().await()
+
+                // También crear un documento de metadatos del backup
+                val backupMetadata = hashMapOf(
+                    "userId" to userId,
+                    "email" to currentUser.email,
+                    "timestamp" to System.currentTimeMillis(),
+                    "clientesCount" to clientes.size,
+                    "abonosCount" to abonos.size,
+                    "productosCount" to productos.size
+                )
+
+                dbFirebase.collection("Usuarios").document(userId)
+                    .collection("BackupMetadata").document("latest")
+                    .set(backupMetadata).await()
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@PerfilActivity, "Base de datos respaldada exitosamente", Toast.LENGTH_SHORT).show()
+                    progressDialog.dismiss()
+                    Toast.makeText(this@PerfilActivity,
+                        "✅ Respaldo completado: ${clientes.size} clientes, ${productos.size} productos, ${abonos.size} abonos",
+                        Toast.LENGTH_LONG).show()
+
+                    Log.d("BackupSuccess", "Respaldo exitoso para usuario: $userId")
                 }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@PerfilActivity, "Error al respaldar la base de datos: ${e.message}", Toast.LENGTH_LONG).show()
+                    progressDialog.dismiss()
+
+                    Log.e("BackupError", "Error detallado:", e)
+
+                    val errorMsg = when {
+                        e.message?.contains("PERMISSION_DENIED") == true ->
+                            "❌ Permiso denegado. Verifica las reglas de Firestore"
+                        e.message?.contains("network") == true || e.message?.contains("connection") == true ->
+                            "❌ Error de conexión. Verifica tu internet"
+                        else -> "❌ Error al respaldar: ${e.localizedMessage}"
+                    }
+
+                    Toast.makeText(this@PerfilActivity, errorMsg, Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -512,6 +693,25 @@ class PerfilActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@PerfilActivity, "Error al exportar: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun debugBackupWorker() {
+        val workManager = WorkManager.getInstance(this)
+
+        workManager.getWorkInfosByTagLiveData("auto_backup_worker").observe(this) { workInfos ->
+            workInfos.forEach { info ->
+                Log.d("BackupDebug", "Worker: ${info.state}, Intentos: ${info.runAttemptCount}")
+
+                when (info.state) {
+                    WorkInfo.State.ENQUEUED -> Toast.makeText(this, "Worker en cola", Toast.LENGTH_SHORT).show()
+                    WorkInfo.State.RUNNING -> Toast.makeText(this, "Worker ejecutándose", Toast.LENGTH_SHORT).show()
+                    WorkInfo.State.SUCCEEDED -> Toast.makeText(this, "Worker exitoso", Toast.LENGTH_SHORT).show()
+                    WorkInfo.State.FAILED -> Toast.makeText(this, "Worker falló", Toast.LENGTH_SHORT).show()
+                    WorkInfo.State.BLOCKED -> Toast.makeText(this, "Worker bloqueado", Toast.LENGTH_SHORT).show()
+                    WorkInfo.State.CANCELLED -> Toast.makeText(this, "Worker cancelado", Toast.LENGTH_SHORT).show()
                 }
             }
         }

@@ -12,6 +12,9 @@ interface ProductoDao {
     @Query("SELECT * FROM Producto_table")
     fun getAllProductos(): List<Producto>
 
+    @Query("DELETE FROM Producto_table")
+    fun deleteAll()
+
     @Query("SELECT * FROM Producto_table WHERE producto_id = :id")
     fun getProductoById(id: Int): Producto?
 
