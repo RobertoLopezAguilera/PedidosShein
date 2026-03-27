@@ -450,7 +450,7 @@ class PerfilActivity : AppCompatActivity() {
                                     if (isAutoBackupEnabled) {
                                         BackupManager.cancelPeriodicBackup(context)
                                     } else {
-                                        BackupManager.schedulePeriodicBackup(context)
+                                        BackupManager.scheduleDailyBackupAt1AM(context)
                                         // Forzar un respaldo inmediato al activar
                                         BackupManager.triggerImmediateBackup(context)
                                     }

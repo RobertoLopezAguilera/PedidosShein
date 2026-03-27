@@ -200,61 +200,83 @@ class ClienteDetalleActivity : ComponentActivity() {
                                 actionIconContentColor = Color.White
                             ),
                             actions = {
-                                // Selector de vista
                                 IconButton(
                                     onClick = { vistaPorPedidos = !vistaPorPedidos }
                                 ) {
                                     Icon(
-                                        imageVector = if (vistaPorPedidos) Icons.Default.ViewList else Icons.Default.DateRange,
-                                        contentDescription = if (vistaPorPedidos) "Vista normal" else "Vista por pedidos",
+                                        imageVector = if (vistaPorPedidos)
+                                            Icons.Default.ViewList
+                                        else
+                                            Icons.Default.DateRange,
+                                        contentDescription = "Cambiar vista",
                                         tint = Color.White
                                     )
                                 }
+                            }
+                        )
+                    }
+                },
+                floatingActionButton = {
+                    var expanded by remember { mutableStateOf(false) }
 
-                                IconButton(
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        AnimatedVisibility(visible = expanded) {
+
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+                                // ✏️ Editar cliente
+                                SmallFloatingActionButton(
                                     onClick = {
+                                        expanded = false
                                         startActivity(
                                             Intent(context, EditarClienteActivity::class.java).apply {
                                                 putExtra("CLIENTE_ID", clienteId)
                                             }
                                         )
-                                    }
+                                    },
+                                    containerColor = primaryColor
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.icon_editar_cliente),
-                                        contentDescription = "Editar cliente"
-                                    )
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar")
                                 }
-                                IconButton(
+
+                                // 📦 Agregar producto
+                                SmallFloatingActionButton(
                                     onClick = {
+                                        expanded = false
                                         startActivity(
                                             Intent(context, AgregarProductoActivity::class.java).apply {
                                                 putExtra("CLIENTE_ID", clienteId)
                                             }
                                         )
-                                    }
+                                    },
+                                    containerColor = infoColor
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.icon_pedidos),
-                                        contentDescription = "Agregar producto"
-                                    )
+                                    Icon(Icons.Default.AddShoppingCart, contentDescription = "Producto")
                                 }
-                                IconButton(
+
+                                // 💰 Agregar abono
+                                SmallFloatingActionButton(
                                     onClick = {
+                                        expanded = false
                                         startActivity(
                                             Intent(context, AgregarAbonoActivity::class.java).apply {
                                                 putExtra("CLIENTE_ID", clienteId)
                                             }
                                         )
-                                    }
+                                    },
+                                    containerColor = successColor
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.icon_agregar_abono),
-                                        contentDescription = "Agregar abono"
-                                    )
+                                    Icon(Icons.Default.AttachMoney, contentDescription = "Abono")
                                 }
-                                IconButton(
+
+                                // 🗑 Eliminar
+                                SmallFloatingActionButton(
                                     onClick = {
+                                        expanded = false
                                         AlertDialog.Builder(context)
                                             .setTitle("Eliminar registros")
                                             .setMessage("¿Eliminar productos y abonos del cliente?")
@@ -274,78 +296,24 @@ class ClienteDetalleActivity : ComponentActivity() {
                                             }
                                             .setNegativeButton("No", null)
                                             .show()
-                                    }
+                                    },
+                                    containerColor = errorColor
                                 ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.borrar_cliente),
-                                        contentDescription = "Eliminar registros"
-                                    )
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar")
                                 }
                             }
-                        )
-                    }
-                },
-                floatingActionButton = {
-                    FloatingActionButton(
-                        onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                val cliente = db.clienteDao().getClienteById(clienteId)
-                                val productos = db.productoDao().getProductosByClienteId(clienteId)
-                                val abonos = db.abonoDao().getAbonosByClienteId(clienteId)
-                                val totalProductos = productos.sumOf { it.precio }
-                                val totalAbonos = abonos.sumOf { it.monto }
-                                val deuda = totalProductos - totalAbonos
+                        }
 
-                                val mensaje = buildString {
-                                    appendLine("Cliente: ${cliente?.nombre}")
-                                    appendLine("Teléfono: ${cliente?.telefono}")
-                                    appendLine()
-
-                                    if (vistaPorPedidos) {
-                                        val pedidos = agruparPorPedidos()
-                                        pedidos.forEach { pedido ->
-                                            appendLine("PEDIDO DEL ${pedido.fecha}")
-                                            appendLine("Productos (Total: ${formatCurrency(pedido.totalProductos)}):")
-                                            pedido.productos.forEach { producto ->
-                                                appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
-                                            }
-                                            if (pedido.abonos.isNotEmpty()) {
-                                                appendLine("Abonos (Total: ${formatCurrency(pedido.totalAbonos)}):")
-                                                pedido.abonos.forEach { abono ->
-                                                    appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
-                                                }
-                                            }
-                                            appendLine("Restante: ${formatCurrency(pedido.restante)}")
-                                            appendLine("---")
-                                        }
-                                    } else {
-                                        appendLine("Productos (Total: ${formatCurrency(totalProductos)}):")
-                                        productos.forEach { producto ->
-                                            appendLine("- ${producto.nombre}: ${formatCurrency(producto.precio)}")
-                                        }
-                                        appendLine()
-                                        appendLine("Abonos (Total: ${formatCurrency(totalAbonos)}):")
-                                        abonos.forEach { abono ->
-                                            appendLine("- ${formatCurrency(abono.monto)} el ${abono.fecha}")
-                                        }
-                                        appendLine()
-                                        appendLine("Deuda restante: ${formatCurrency(deuda)}")
-                                    }
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    val intent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, mensaje)
-                                    }
-                                    context.startActivity(Intent.createChooser(intent, "Compartir detalles"))
-                                }
-                            }
-                        },
-                        containerColor = primaryColor,
-                        contentColor = Color.White
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = "Compartir")
+                        // 🔥 FAB principal
+                        FloatingActionButton(
+                            onClick = { expanded = !expanded },
+                            containerColor = primaryColor
+                        ) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.Close else Icons.Default.Add,
+                                contentDescription = "Menú"
+                            )
+                        }
                     }
                 }
             ) { padding ->

@@ -38,8 +38,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
+
     private var recargarDatos by mutableStateOf(false)
 
     override fun onResume() {
@@ -60,14 +66,18 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        // Inicializar respaldo automático
-        BackupManager.schedulePeriodicBackup(this)
+        // 🔔 Pedir permiso de notificaciones
+        askNotificationPermission()
 
+        // 📦 Inicializar respaldo automático
+        BackupManager.scheduleDailyBackupAt1AM(this)
+
+        // 📢 Ads
         MobileAds.initialize(this)
 
         setContent {
             PedidosSheinTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = androidx.compose.ui.Modifier.fillMaxSize()) {
                     ClienteScreen(
                         userEmail = userEmail,
                         recargarTrigger = recargarDatos,
@@ -98,6 +108,46 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, "Sesión cerrada con éxito", Toast.LENGTH_SHORT).show()
         startActivity(Intent(this, LoginActivity::class.java))
         finish()
+    }
+
+    // 🔔 Launcher para permiso
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            Toast.makeText(this, "Notificaciones activadas", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Notificaciones desactivadas", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 🔔 Función para pedir permiso
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    // Ya tiene permiso
+                }
+
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    Toast.makeText(
+                        this,
+                        "Activa notificaciones para recibir respaldos",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+
+                else -> {
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
     }
 }
 
